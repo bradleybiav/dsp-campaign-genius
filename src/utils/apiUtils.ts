@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 // Types for normalized inputs
 export interface NormalizedInput {
   id: string;
-  type: 'spotify_track' | 'spotify_artist' | '1001tracklists' | 'youtube';
+  type: 'spotify_track' | 'spotify_artist' | '1001tracklists' | 'youtube' | 'isrc';
   originalUrl: string;
   inputIndex: number;
 }
@@ -14,6 +14,17 @@ export interface NormalizedInput {
  */
 export const extractIdentifier = (url: string): NormalizedInput | null => {
   try {
+    // ISRC pattern (CC-XXX-YY-NNNNN, but often without hyphens)
+    const isrcPattern = /^[A-Z]{2}[A-Z0-9]{3}[0-9]{7}$/;
+    if (isrcPattern.test(url)) {
+      return {
+        id: url,
+        type: 'isrc',
+        originalUrl: url,
+        inputIndex: -1 // Will be set by the caller
+      };
+    }
+
     // Spotify URL pattern: https://open.spotify.com/(track|artist|album)/[a-zA-Z0-9]{22}
     const spotifyMatch = url.match(/https:\/\/open\.spotify\.com\/(track|artist|album)\/([a-zA-Z0-9]{22})/);
     if (spotifyMatch) {

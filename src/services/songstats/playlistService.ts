@@ -1,4 +1,3 @@
-
 import { PlaylistResult } from '@/components/ResultsTable';
 import { NormalizedInput } from '@/utils/apiUtils';
 import { callSongstatsApi, getISRCFromSpotifyTrack } from './apiClient';
@@ -15,6 +14,61 @@ export const getPlaylistPlacements = async (
     
     // Process each input
     for (const input of normalizedInputs) {
+      // For ISRC inputs, use them directly
+      if (input.type === 'isrc') {
+        const isrc = input.id;
+        console.log(`Using direct ISRC input: ${isrc}`);
+        
+        // Get track stats with playlists using ISRC
+        const trackData = await callSongstatsApi('tracks/stats', { 
+          isrc: isrc,
+          with_playlists: "true" // Using string "true" instead of boolean true
+        });
+        
+        if (!trackData || trackData.error) {
+          console.error('Error getting track stats for ISRC:', trackData?.error || 'Unknown error');
+          continue;
+        }
+        
+        // Process Spotify playlists from the stats
+        const spotifyStats = trackData.stats?.find(stat => stat.source === 'spotify');
+        
+        if (!spotifyStats || !spotifyStats.data || !spotifyStats.data.playlists) {
+          console.log(`No Spotify playlist data for ISRC: ${isrc}`);
+          continue;
+        }
+        
+        // Process each playlist
+        for (const playlist of spotifyStats.data.playlists) {
+          const playlistKey = playlist.spotifyid || playlist.id;
+          
+          if (processedPlaylists.has(playlistKey)) {
+            // If we've seen this playlist before, update the matched inputs
+            const existingPlaylist = processedPlaylists.get(playlistKey)!;
+            if (!existingPlaylist.matchedInputs.includes(input.inputIndex)) {
+              existingPlaylist.matchedInputs.push(input.inputIndex);
+            }
+          } else {
+            // Otherwise, create a new result
+            const result: PlaylistResult = {
+              id: playlistKey,
+              playlistName: playlist.name,
+              curatorName: playlist.owner_name || playlist.curator || 'Unknown',
+              followerCount: playlist.followers || 0,
+              lastUpdated: playlist.last_updated || new Date().toISOString(),
+              matchedInputs: [input.inputIndex],
+              playlistUrl: `https://open.spotify.com/playlist/${playlistKey}`,
+              vertical: 'dsp'
+            };
+            
+            processedPlaylists.set(playlistKey, result);
+            results.push(result);
+          }
+        }
+        
+        continue; // Skip to next input
+      }
+      
       // Skip non-Spotify track inputs for DSP research
       if (input.type !== 'spotify_track') continue;
       

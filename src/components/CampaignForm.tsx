@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,15 +9,15 @@ import { validateSpotifyUrl } from './campaign-form/util/validationUtils';
 import { Button } from './ui/button';
 import { Beaker } from 'lucide-react';
 
-// Test data for quick population
+// Test data for quick population - now with ISRCs
 const TEST_DATA = {
   name: "Test Campaign " + new Date().toLocaleString(),
   references: [
-    "https://open.spotify.com/track/2Fxmhks0bxGSBdJ92vM42m",
-    "https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b",
-    "https://open.spotify.com/artist/6M2wZ9GZgrQXHCFfjv46we", 
-    "https://open.spotify.com/album/7xV2TzoaVc0ycW7fwBwAml",
-    "https://open.spotify.com/track/02MWAaffLxlfxAUY7c5dvx"
+    "USIR20400274", // Black Eyed Peas - Let's Get It Started
+    "USCJY1431238", // Taylor Swift - Shake It Off
+    "GBBKS1500214", // Adele - Hello
+    "USQX91300108", // Daft Punk - Get Lucky
+    "https://open.spotify.com/track/2Fxmhks0bxGSBdJ92vM42m"
   ],
   verticals: ["dsp", "radio", "dj", "press"]
 };
