@@ -3,7 +3,7 @@ import { useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { PlaylistResult } from '@/components/ResultsTable';
 import { normalizeInputs } from '@/utils/apiUtils';
-import { getPlaylistPlacements, getRadioPlays, RadioResult } from '@/services/songstatsService';
+import { getPlaylistPlacements, getRadioPlays, RadioResult } from '@/services/songstats';
 import { getDjPlacements, DjResult } from '@/services/tracklistsService';
 import { getPressResults, PressResult } from '@/services/pressService';
 import { saveCampaign } from '@/services/supabaseService';
