@@ -12,18 +12,18 @@ const RETRY_DELAY_MS = 1000;
 export const callSongstatsApi = async (
   path: string, 
   params: Record<string, string | number> = {},
+  isRadioApi = false,
   retries = 0
 ) => {
   try {
-    console.log(`Calling Songstats API: ${path}`, params);
+    console.log(`Calling Songstats API: ${path}`, params, isRadioApi ? '(RadioStats API)' : '');
     
     const startTime = Date.now();
     const { data, error } = await supabase.functions.invoke('songstats', {
       body: { 
         path, 
         params,
-        // Explicitly tell the edge function if this is a RadioStats API call
-        isRadioApi: path.startsWith('radio/')
+        isRadioApi // Tell the edge function if this is a RadioStats API call
       },
     });
     const duration = Date.now() - startTime;
@@ -38,7 +38,7 @@ export const callSongstatsApi = async (
       if (shouldRetry(error.message) && retries < MAX_CLIENT_RETRIES) {
         console.log(`Retrying API call (${retries + 1}/${MAX_CLIENT_RETRIES})`);
         await delay(RETRY_DELAY_MS * (retries + 1));
-        return callSongstatsApi(path, params, retries + 1);
+        return callSongstatsApi(path, params, isRadioApi, retries + 1);
       }
       
       // Handle 404s gracefully
@@ -68,7 +68,7 @@ export const callSongstatsApi = async (
       if (shouldRetryStatus(data.status) && retries < MAX_CLIENT_RETRIES) {
         console.log(`Retrying due to status ${data.status} (${retries + 1}/${MAX_CLIENT_RETRIES})`);
         await delay(RETRY_DELAY_MS * (retries + 1));
-        return callSongstatsApi(path, params, retries + 1);
+        return callSongstatsApi(path, params, isRadioApi, retries + 1);
       }
       
       // Handle 404s gracefully
@@ -89,7 +89,7 @@ export const callSongstatsApi = async (
     if (retries < MAX_CLIENT_RETRIES) {
       console.log(`Retrying after error (${retries + 1}/${MAX_CLIENT_RETRIES})`);
       await delay(RETRY_DELAY_MS * (retries + 1));
-      return callSongstatsApi(path, params, retries + 1);
+      return callSongstatsApi(path, params, isRadioApi, retries + 1);
     }
     
     toast.error(`Connection error: ${getErrorMessage(error)}`);

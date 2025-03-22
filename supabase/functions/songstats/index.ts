@@ -82,15 +82,13 @@ async function processApiResponse(response: Response): Promise<object> {
 async function callSongstatsApi(path: string, params: any, apiKey: string, isRadioApi: boolean = false): Promise<any> {
   const queryParams = new URLSearchParams(params);
   
-  // Determine which API to use 
-  let baseUrl = isRadioApi || path.startsWith('radio/') ? RADIOSTATS_API_URL : ENTERPRISE_API_URL;
+  // Determine which API to use based on isRadioApi flag
+  const baseUrl = isRadioApi ? RADIOSTATS_API_URL : ENTERPRISE_API_URL;
   
-  // Fix path to not have 'radio/' prefix if using RadioStats API URL
-  const apiPath = (isRadioApi && path.startsWith('radio/')) ? path.substring(6) : path;
+  // Don't modify path for RadioStats API - let client specify the exact endpoint
+  const url = `${baseUrl}/${path}?${queryParams.toString()}`;
   
-  const url = `${baseUrl}/${apiPath}?${queryParams.toString()}`;
-  
-  console.log(`Calling API: ${url}`);
+  console.log(`Calling API: ${url} ${isRadioApi ? '(RadioStats API)' : ''}`);
   
   const requestOptions = {
     method: "GET",

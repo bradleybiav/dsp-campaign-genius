@@ -57,7 +57,7 @@ export const processRadioData = (
       const result: RadioResult = {
         id: `radio-${station.name}-${inputIndex}`,
         station: station.name,
-        country: station.region || 'Unknown', // Changed from region to country
+        country: station.country || station.region || 'Unknown', // Try country first, then region as fallback
         dj: station.dj || 'Unknown DJ',
         show: station.show || '',
         playsCount: playsCount,

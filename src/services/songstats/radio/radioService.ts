@@ -43,10 +43,11 @@ export const getRadioPlays = async (
       
       radioApiStats.total++;
       
-      // Use the direct RadioStats endpoint for radio data
-      const response = await callSongstatsApi('radio/isrc', { 
+      // Use the RadioStats API endpoint with correct path and params
+      // The proper endpoint is 'radio/' not 'radio/isrc'
+      const response = await callSongstatsApi('radio', { 
         isrc: isrc
-      });
+      }, true); // Explicitly tell it's a RadioStats API call
       
       if (!response || response.error) {
         console.error('Error getting radio data for ISRC:', response?.error || 'Unknown error');
