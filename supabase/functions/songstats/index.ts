@@ -3,6 +3,41 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders } from "../_shared/cors.ts"
 
 const SONGSTATS_API_URL = 'https://api.songstats.com/v1';
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 500;
+
+/**
+ * Retry mechanism for API calls
+ */
+async function fetchWithRetry(url: string, options: RequestInit, retries = 0): Promise<Response> {
+  try {
+    const response = await fetch(url, options);
+    
+    // Handle rate limiting (429) specifically
+    if (response.status === 429 && retries < MAX_RETRIES) {
+      console.log(`Rate limited, retry ${retries + 1}/${MAX_RETRIES} after ${RETRY_DELAY_MS}ms`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (retries + 1)));
+      return fetchWithRetry(url, options, retries + 1);
+    }
+    
+    // Handle other server errors that might be temporary
+    if (response.status >= 500 && retries < MAX_RETRIES) {
+      console.log(`Server error ${response.status}, retry ${retries + 1}/${MAX_RETRIES} after ${RETRY_DELAY_MS}ms`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (retries + 1)));
+      return fetchWithRetry(url, options, retries + 1);
+    }
+    
+    return response;
+  } catch (error) {
+    // Handle network errors
+    if (retries < MAX_RETRIES) {
+      console.log(`Network error, retry ${retries + 1}/${MAX_RETRIES} after ${RETRY_DELAY_MS}ms`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (retries + 1)));
+      return fetchWithRetry(url, options, retries + 1);
+    }
+    throw error;
+  }
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -17,8 +52,12 @@ serve(async (req) => {
     const apiKey = Deno.env.get("SONGSTATS_API_KEY")
     
     if (!apiKey) {
+      console.error("API key not configured in environment variables");
       return new Response(
-        JSON.stringify({ error: "API key not configured" }),
+        JSON.stringify({ 
+          error: "API key not configured",
+          details: "The Songstats API key is missing in the edge function configuration."
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       )
     }
@@ -31,15 +70,50 @@ serve(async (req) => {
       url = `${url}?${queryParams.toString()}`
     }
 
-    // Make request to Songstats API
-    const response = await fetch(url, {
+    console.log(`Making request to Songstats API: ${url}`);
+
+    // Make request to Songstats API with retry logic
+    const response = await fetchWithRetry(url, {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-    })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMessage = `Songstats API responded with status ${response.status}`;
+      
+      try {
+        // Try to parse error as JSON if possible
+        const errorJson = JSON.parse(errorText);
+        console.error("Songstats API error response:", errorJson);
+        
+        return new Response(
+          JSON.stringify({ 
+            error: errorMessage,
+            status: response.status,
+            details: errorJson
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: response.status }
+        )
+      } catch (e) {
+        // Fall back to raw error text
+        console.error("Songstats API error response:", errorText);
+        
+        return new Response(
+          JSON.stringify({ 
+            error: errorMessage,
+            status: response.status,
+            details: errorText
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: response.status }
+        )
+      }
+    }
 
     const data = await response.json()
+    console.log(`Songstats API response for ${path} received successfully`);
 
     // Return response data
     return new Response(
@@ -47,9 +121,15 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     )
   } catch (error) {
-    // Return error message
+    console.error("Error in Songstats edge function:", error);
+    
+    // Return detailed error message
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: "Error processing Songstats API request",
+        details: error.message,
+        stack: Deno.env.get("ENVIRONMENT") === "development" ? error.stack : undefined
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     )
   }
