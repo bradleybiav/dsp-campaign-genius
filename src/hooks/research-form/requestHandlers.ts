@@ -24,25 +24,48 @@ const handleApiError = (service: string, error: any) => {
   return errorMessage;
 };
 
-// Diagnostic function to test the Songstats API
+// Test specific Songstats API endpoints
 async function testSongstatsApi() {
   try {
     console.log('Testing Songstats API connection...');
     
-    // Test a simple endpoint to see if the API is responding
-    const testResult = await callSongstatsApi('search', { 
+    // Step 1: Test the main API health/status endpoint if available
+    console.log('Step 1: Testing API health endpoint');
+    try {
+      const healthCheck = await callSongstatsApi('', {});
+      console.log('Health check result:', healthCheck);
+    } catch (err) {
+      console.warn('Health check failed, but continuing with specific endpoint tests');
+    }
+    
+    // Step 2: Test a specific endpoint with a known track ID
+    console.log('Step 2: Testing search endpoint with a known track');
+    const testTrackResult = await callSongstatsApi('search', { 
       q: 'spotify:track:3Wrjm47oTz2sjIgck11l5e' // Billie Eilish - bad guy
     });
     
-    console.log('Songstats API test result:', testResult);
+    console.log('Search endpoint test result:', testTrackResult);
     
-    if (testResult && testResult.id) {
-      console.log('✅ Songstats API test successful!');
-      return true;
+    if (testTrackResult && testTrackResult.id) {
+      console.log('✅ Search endpoint test successful!');
     } else {
-      console.error('❌ Songstats API test failed - invalid response format:', testResult);
+      console.error('❌ Search endpoint test failed - invalid response format:', testTrackResult);
       return false;
     }
+    
+    // Step 3: Verify the correct handling of Spotify Artist IDs
+    console.log('Step 3: Testing artist ID handling');
+    const testArtistResult = await callSongstatsApi('search', {
+      q: 'spotify:artist:4dpARuHxo51G3z768sgnrY' // Adele
+    });
+    
+    console.log('Artist search test result:', testArtistResult);
+    
+    // Return overall status
+    const apiWorking = !!(testTrackResult && testTrackResult.id);
+    console.log(`Songstats API testing complete. Working: ${apiWorking}`);
+    return apiWorking;
+    
   } catch (error) {
     console.error('❌ Songstats API test failed with error:', error);
     return false;
@@ -58,7 +81,7 @@ export async function executeResearch(
   if (!apiConnected) {
     console.warn('Songstats API connection test failed, research results may be limited');
     toast.error('Unable to connect to Songstats API', {
-      description: 'Check Edge Function logs for details'
+      description: 'The API may be unavailable or the endpoint structure may have changed. Check Edge Function logs for details.'
     });
   }
   
@@ -146,6 +169,8 @@ export async function executeResearch(
 export async function checkAPIConfiguration(): Promise<boolean> {
   try {
     console.log('Checking Songstats API configuration...');
+    
+    // First check if the API key is configured
     const apiKeyCheck = await fetch('/api/check-songstats-key');
     
     if (!apiKeyCheck.ok) {
@@ -158,10 +183,22 @@ export async function checkAPIConfiguration(): Promise<boolean> {
     
     if (!apiKeyStatus.configured) {
       console.error('API key is not configured or empty. Length:', apiKeyStatus.apiKeyLength);
+      toast.error('Songstats API key is not properly configured', {
+        description: 'Please check your API key in Supabase Edge Function secrets'
+      });
       return false;
     }
     
-    return apiKeyStatus.configured;
+    // Next attempt to make a test call to verify the API is working
+    const apiTest = await testSongstatsApi();
+    if (!apiTest) {
+      toast.error('Songstats API connection test failed', {
+        description: 'The API may be unavailable or the URL structure may have changed'
+      });
+      return false;
+    }
+    
+    return true;
   } catch (error) {
     console.error('Error checking API configuration:', error);
     return false;

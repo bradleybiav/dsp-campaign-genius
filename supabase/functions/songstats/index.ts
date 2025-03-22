@@ -2,7 +2,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders } from "../_shared/cors.ts"
 
+// Original URL that's returning 404 errors
 const SONGSTATS_API_URL = 'https://api.songstats.com/v1';
+// Alternative base URL to try if needed
+const SONGSTATS_API_URL_ALT = 'https://api.songstats.com/api/v1';
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 500;
 
@@ -59,6 +62,64 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 0): P
   }
 }
 
+/**
+ * Try to fetch from an alternative URL if the main one fails
+ */
+async function fetchWithAlternativeUrl(path: string, params: Record<string, string>, options: RequestInit): Promise<Response> {
+  try {
+    // First try with the primary URL
+    let primaryUrl = `${SONGSTATS_API_URL}/${path}`;
+    
+    if (params) {
+      const queryParams = new URLSearchParams(params);
+      primaryUrl = `${primaryUrl}?${queryParams.toString()}`;
+    }
+    
+    console.log(`Trying primary URL: ${primaryUrl}`);
+    const primaryResponse = await fetchWithRetry(primaryUrl, options);
+    
+    // If the primary URL returns a 404, try the alternative URL
+    if (primaryResponse.status === 404) {
+      console.log(`Primary URL returned 404, trying alternative URL format`);
+      
+      // Try different URL structure for the API
+      let alternativeUrl = `${SONGSTATS_API_URL_ALT}/${path}`;
+      
+      if (params) {
+        const queryParams = new URLSearchParams(params);
+        alternativeUrl = `${alternativeUrl}?${queryParams.toString()}`;
+      }
+      
+      console.log(`Trying alternative URL: ${alternativeUrl}`);
+      return await fetchWithRetry(alternativeUrl, options);
+    }
+    
+    return primaryResponse;
+  } catch (error) {
+    console.error(`Error in fetchWithAlternativeUrl:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Helper function to validate API key before making requests
+ */
+function validateApiKey(apiKey: string | undefined): boolean {
+  if (!apiKey) {
+    console.error("API key not configured in environment variables");
+    return false;
+  }
+  
+  // Basic validation - ensure API key has a reasonable length
+  if (apiKey.length < 10) {
+    console.error(`API key looks invalid (too short): length=${apiKey.length}`);
+    return false;
+  }
+  
+  console.log(`API key validation passed: length=${apiKey.length}, first4Chars=${apiKey.substring(0, 4)}..., last4Chars=...${apiKey.substring(apiKey.length - 4)}`);
+  return true;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -66,84 +127,77 @@ serve(async (req) => {
   }
 
   try {
-    const { path, params } = await req.json()
+    const { path, params } = await req.json();
     console.log(`Request received for path: ${path}, params:`, params);
     
     // Get the API key from Supabase secrets
-    const apiKey = Deno.env.get("SONGSTATS_API_KEY")
+    const apiKey = Deno.env.get("SONGSTATS_API_KEY");
     
-    if (!apiKey) {
-      console.error("API key not configured in environment variables");
+    if (!validateApiKey(apiKey)) {
       return new Response(
         JSON.stringify({ 
-          error: "API key not configured",
-          details: "The Songstats API key is missing in the edge function configuration."
+          error: "API key not configured or invalid",
+          details: "The Songstats API key is missing or invalid in the edge function configuration."
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-      )
+      );
     }
 
-    // Log API key information (safely)
-    console.log(`API key information: length=${apiKey.length}, first4Chars=${apiKey.substring(0, 4)}..., last4Chars=...${apiKey.substring(apiKey.length - 4)}`);
+    try {
+      // Make request to Songstats API with retry logic and alternative URL fallback
+      const response = await fetchWithAlternativeUrl(path, params, {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-    // Construct URL with query parameters
-    let url = `${SONGSTATS_API_URL}/${path}`
-    
-    if (params) {
-      const queryParams = new URLSearchParams(params)
-      url = `${url}?${queryParams.toString()}`
-    }
-
-    console.log(`Making request to Songstats API: ${url}`);
-
-    // Make request to Songstats API with retry logic
-    const response = await fetchWithRetry(url, {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorMessage = `Songstats API responded with status ${response.status}`;
-      
-      try {
-        // Try to parse error as JSON if possible
-        const errorJson = JSON.parse(errorText);
-        console.error("Songstats API error response:", errorJson);
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage = `Songstats API responded with status ${response.status}`;
+        let errorDetails: any = errorText;
         
+        try {
+          // Try to parse error as JSON if possible
+          errorDetails = JSON.parse(errorText);
+          console.error("Songstats API error response:", errorDetails);
+        } catch (e) {
+          // Fall back to raw error text
+          console.error("Songstats API error response (text):", errorText);
+        }
+        
+        // Provide a more detailed response with troubleshooting info
         return new Response(
           JSON.stringify({ 
             error: errorMessage,
             status: response.status,
-            details: errorJson
+            details: errorDetails,
+            troubleshooting: "The Songstats API may have changed its endpoint structure or format. Please check if the API is still active and if your API key is valid."
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: response.status }
-        )
-      } catch (e) {
-        // Fall back to raw error text
-        console.error("Songstats API error response:", errorText);
-        
-        return new Response(
-          JSON.stringify({ 
-            error: errorMessage,
-            status: response.status,
-            details: errorText
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: response.status }
-        )
+        );
       }
+
+      const data = await response.json();
+      console.log(`Songstats API response for ${path} received successfully`);
+
+      // Return response data
+      return new Response(
+        JSON.stringify(data),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    } catch (apiError) {
+      console.error("Error calling Songstats API:", apiError);
+      
+      return new Response(
+        JSON.stringify({ 
+          error: "Error calling Songstats API",
+          details: apiError.message,
+          troubleshooting: "The Songstats API might be unavailable or the endpoint structure may have changed. Please check if the API is still active and if your API key is valid."
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 502 }
+      );
     }
-
-    const data = await response.json()
-    console.log(`Songstats API response for ${path} received successfully`);
-
-    // Return response data
-    return new Response(
-      JSON.stringify(data),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    )
   } catch (error) {
     console.error("Error in Songstats edge function:", error);
     
@@ -152,9 +206,10 @@ serve(async (req) => {
       JSON.stringify({ 
         error: "Error processing Songstats API request",
         details: error.message,
-        stack: Deno.env.get("ENVIRONMENT") === "development" ? error.stack : undefined
+        stack: Deno.env.get("ENVIRONMENT") === "development" ? error.stack : undefined,
+        troubleshooting: "The request to the Songstats API edge function is invalid or the Songstats API may be unavailable."
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-    )
+    );
   }
-})
+});

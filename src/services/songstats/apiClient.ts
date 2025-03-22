@@ -47,6 +47,16 @@ export const callSongstatsApi = async (
         });
       }
       
+      // Log additional troubleshooting information to help diagnose the issue
+      console.error('Troubleshooting info:', {
+        path,
+        params,
+        errorMessage: error.message,
+        errorName: error.name,
+        errorCause: error.cause,
+        dataReceived: data
+      });
+      
       return null;
     }
 
@@ -63,8 +73,17 @@ export const callSongstatsApi = async (
       
       // Show error toast with details
       if (data.details) {
+        let detailsStr = typeof data.details === 'string' 
+          ? data.details 
+          : JSON.stringify(data.details).substring(0, 100);
+        
+        // Include troubleshooting info if available
+        if (data.troubleshooting) {
+          detailsStr += ` (${data.troubleshooting})`;
+        }
+        
         toast.error(`Songstats API Error: ${data.error}`, {
-          description: typeof data.details === 'string' ? data.details : JSON.stringify(data.details).substring(0, 100)
+          description: detailsStr
         });
       } else {
         toast.error(`Songstats API Error: ${data.error}`);
@@ -111,6 +130,9 @@ export const getSongstatsId = async (spotifyId: string, type: 'track' | 'artist'
     
     if (!data.id) {
       console.error(`Songstats ID not found for Spotify ${type} ID ${spotifyId}`);
+      toast.error(`Could not find Songstats ID for the Spotify ${type}`, {
+        description: "The API may not recognize this Spotify ID or the API structure may have changed"
+      });
       return null;
     }
     
