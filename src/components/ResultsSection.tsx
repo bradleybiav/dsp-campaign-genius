@@ -4,7 +4,7 @@ import FilterSection from '@/components/FilterSection';
 import ResultsTable from '@/components/ResultsTable';
 import type { PlaylistResult, RadioResult, DjResult, PressResult } from '@/components/results-table/types';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { InfoCircle } from 'lucide-react';
+import { Info } from 'lucide-react';
 
 interface ResultsSectionProps {
   results: {
@@ -50,7 +50,7 @@ const ResultsSection: React.FC<ResultsSectionProps> = ({
       
       {usingMockData && (
         <Alert className="mb-4 bg-amber-50 text-amber-800 border-amber-200">
-          <InfoCircle className="h-4 w-4 mr-2" />
+          <Info className="h-4 w-4 mr-2" />
           <AlertDescription>
             Showing demo data. The Songstats API is currently unavailable.
           </AlertDescription>

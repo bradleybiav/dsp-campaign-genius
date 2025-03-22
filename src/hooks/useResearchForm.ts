@@ -59,9 +59,6 @@ export const useResearchForm = () => {
         pressResults: []
       };
       
-      // Track if all API calls failed
-      let allApiFailed = true;
-      
       // Execute vertical-specific research based on selected verticals
       const researchPromises: Promise<void>[] = [];
       
@@ -69,10 +66,12 @@ export const useResearchForm = () => {
       if (formData.selectedVerticals.includes('dsp')) {
         const dspPromise = getPlaylistPlacements(normalized)
           .then(results => {
-            if (results.length > 0) {
-              allApiFailed = false;
-            }
             researchResults.dspResults = results;
+            console.log('DSP results:', results.length);
+          })
+          .catch(error => {
+            console.error('Error fetching playlist placements:', error);
+            toast.error('Failed to fetch playlist data');
           });
         researchPromises.push(dspPromise);
       }
@@ -81,10 +80,12 @@ export const useResearchForm = () => {
       if (formData.selectedVerticals.includes('radio')) {
         const radioPromise = getRadioPlays(normalized)
           .then(results => {
-            if (results.length > 0) {
-              allApiFailed = false;
-            }
             researchResults.radioResults = results;
+            console.log('Radio results:', results.length);
+          })
+          .catch(error => {
+            console.error('Error fetching radio plays:', error);
+            toast.error('Failed to fetch radio data');
           });
         researchPromises.push(radioPromise);
       }
@@ -93,10 +94,12 @@ export const useResearchForm = () => {
       if (formData.selectedVerticals.includes('dj')) {
         const djPromise = getDjPlacements(normalized)
           .then(results => {
-            if (results.length > 0) {
-              allApiFailed = false;
-            }
             researchResults.djResults = results;
+            console.log('DJ results:', results.length);
+          })
+          .catch(error => {
+            console.error('Error fetching DJ placements:', error);
+            toast.error('Failed to fetch DJ data');
           });
         researchPromises.push(djPromise);
       }
@@ -105,10 +108,12 @@ export const useResearchForm = () => {
       if (formData.selectedVerticals.includes('press')) {
         const pressPromise = getPressResults(normalized)
           .then(results => {
-            if (results.length > 0) {
-              allApiFailed = false;
-            }
             researchResults.pressResults = results;
+            console.log('Press results:', results.length);
+          })
+          .catch(error => {
+            console.error('Error fetching press results:', error);
+            toast.error('Failed to fetch press data');
           });
         researchPromises.push(pressPromise);
       }
@@ -116,29 +121,52 @@ export const useResearchForm = () => {
       // Wait for all research to complete
       await Promise.all(researchPromises);
       
-      // If all API calls failed or returned empty results, use mock data as fallback
-      if (allApiFailed) {
-        console.log('Using mock data as fallback');
-        toast.warning('Unable to reach Songstats API. Using demo data instead.', {
-          description: 'Check your API key or try again later.'
-        });
+      // Check if we actually got any results
+      const hasResults = 
+        researchResults.dspResults.length > 0 ||
+        researchResults.radioResults.length > 0 ||
+        researchResults.djResults.length > 0 ||
+        researchResults.pressResults.length > 0;
+      
+      // Only use mock data if we have no results at all
+      if (!hasResults) {
+        console.warn('No results found from APIs, checking API configuration');
         
-        const mockResults = generateMockResults(formData.referenceInputs, formData.selectedVerticals);
+        // Check if Songstats API key is properly configured
+        const apiKeyCheck = await fetch('/api/check-songstats-key');
+        const apiKeyStatus = await apiKeyCheck.json();
         
-        // Distribute mock results based on verticals
-        researchResults.dspResults = mockResults.filter(r => r.vertical === 'dsp');
-        researchResults.radioResults = mockResults.filter(r => r.vertical === 'radio') as unknown as RadioResult[];
-        researchResults.djResults = mockResults.filter(r => r.vertical === 'dj') as unknown as DjResult[];
-        researchResults.pressResults = mockResults.filter(r => r.vertical === 'press') as unknown as PressResult[];
-        
-        setUsingMockData(true);
+        if (!apiKeyStatus.configured) {
+          toast.error('Songstats API key is not configured', {
+            description: 'Please check your Supabase Edge Function configuration'
+          });
+          setUsingMockData(true);
+          
+          // Generate mock data as fallback
+          const mockResults = generateMockResults(formData.referenceInputs, formData.selectedVerticals);
+          
+          // Distribute mock results based on verticals
+          researchResults.dspResults = mockResults.filter(r => r.vertical === 'dsp');
+          researchResults.radioResults = mockResults.filter(r => r.vertical === 'radio') as unknown as RadioResult[];
+          researchResults.djResults = mockResults.filter(r => r.vertical === 'dj') as unknown as DjResult[];
+          researchResults.pressResults = mockResults.filter(r => r.vertical === 'press') as unknown as PressResult[];
+          
+          toast.warning('Using demo data for preview purposes', {
+            description: 'To see real data, configure your Songstats API key in Supabase'
+          });
+        } else {
+          // No results but API key is configured - likely no matches found
+          toast.info('No matching results found', {
+            description: 'Try different reference tracks or artists'
+          });
+        }
       }
       
       // Update results state
       setResults(researchResults);
       setShowResults(true);
       
-      // Save campaign to Supabase - this uses the refactored function
+      // Save campaign to Supabase
       const campaignId = await saveCampaign(
         {
           name: formData.campaignName,
@@ -152,12 +180,9 @@ export const useResearchForm = () => {
       if (campaignId) {
         setSavedCampaignId(campaignId);
         toast.success(usingMockData 
-          ? 'Demo data loaded and saved to database' 
-          : 'Research completed and saved to database');
+          ? 'Campaign saved with demo data' 
+          : 'Research completed and saved');
       } else {
-        toast.success(usingMockData 
-          ? 'Demo data loaded successfully' 
-          : 'Research completed successfully');
         toast.error('Failed to save campaign to database');
       }
       
@@ -169,20 +194,8 @@ export const useResearchForm = () => {
       }, 100);
     } catch (error) {
       console.error('Error in research:', error);
-      toast.error('Error conducting research');
-      
-      // Use mock data as last resort fallback
-      const mockResults = generateMockResults(formData.referenceInputs, formData.selectedVerticals);
-      setResults({
-        dspResults: mockResults.filter(r => r.vertical === 'dsp'),
-        radioResults: mockResults.filter(r => r.vertical === 'radio') as unknown as RadioResult[],
-        djResults: mockResults.filter(r => r.vertical === 'dj') as unknown as DjResult[],
-        pressResults: mockResults.filter(r => r.vertical === 'press') as unknown as PressResult[]
-      });
-      setShowResults(true);
-      setUsingMockData(true);
-      toast.warning('Unable to reach Songstats API. Using demo data instead.', {
-        description: 'Check your API key or try again later.'
+      toast.error('Error conducting research', {
+        description: error.message || 'Please try again later'
       });
     } finally {
       setLoading(false);
