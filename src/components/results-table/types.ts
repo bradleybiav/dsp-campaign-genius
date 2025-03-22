@@ -1,21 +1,50 @@
-
 export interface PlaylistResult {
-  id: string;
   playlistName: string;
   curatorName: string;
   followerCount: number;
   lastUpdated: string;
-  matchedInputs: number[];
   playlistUrl: string;
-  vertical: string;
+  matchedInputs: string[];
+  vertical?: string;
+}
+
+export interface RadioResult {
+  station: string;
+  show: string;
+  dj: string;
+  country: string;
+  lastSpin: string;
+  airplayLink: string;
+  matchedInputs: string[];
+  vertical?: string;
+}
+
+export interface DjResult {
+  dj: string;
+  event: string;
+  location: string;
+  date: string;
+  tracklistUrl: string;
+  matchedInputs: string[];
+  vertical?: string;
+}
+
+export interface PressResult {
+  outlet: string;
+  writer: string;
+  articleTitle: string;
+  date: string;
+  link: string;
+  matchedInputs: string[];
+  vertical?: string;
 }
 
 export interface ResultsTableProps {
   results: {
     dsp: PlaylistResult[];
-    radio: PlaylistResult[];
-    dj: PlaylistResult[];
-    press: PlaylistResult[];
+    radio: RadioResult[];
+    dj: DjResult[];
+    press: PressResult[];
   };
   filterRecent: boolean;
   followerThreshold: number;
