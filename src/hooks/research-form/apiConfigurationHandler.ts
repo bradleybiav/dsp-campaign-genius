@@ -52,40 +52,57 @@ export async function checkAPIConfiguration(): Promise<boolean> {
     
     console.log('API key configuration status:', apiKeyStatus);
     
+    // First check if the key exists
     if (!apiKeyStatus?.configured) {
       console.warn('API key is not configured');
       toast.warning('Songstats API key is not set up', {
-        description: 'Contact administrator to configure the API'
+        description: 'Please contact administrator to configure the API key in Supabase'
       });
       return false;
     }
     
-    // Check if we have detailed API response info
-    if (apiKeyStatus.apiResponseInfo && apiKeyStatus.apiResponseInfo.data) {
-      console.log('API responded with data:', apiKeyStatus.apiResponseInfo.data);
-      console.log('✅ Songstats API is properly configured');
+    // Check if any endpoints are accessible
+    if (apiKeyStatus.apiConnectivity === 'Connected') {
+      console.log('✅ Songstats API is properly configured and accessible');
+      
+      // But show warning if some endpoints failed
+      if (!apiKeyStatus.allTestsSuccessful) {
+        console.warn('⚠️ Some API endpoints are not accessible', 
+          apiKeyStatus.apiTestResults?.filter(r => !r.success));
+        
+        toast.warning('Some Songstats API features may be limited', {
+          description: 'Not all API endpoints are accessible with your current API key'
+        });
+      }
+      
       return true;
     }
     
-    if (apiKeyStatus.apiError) {
-      console.warn('API key validation failed:', apiKeyStatus.apiError);
-      // Don't show error toast yet, we'll try additional tests
+    // If we get here, the API key format looks good but no endpoints are accessible
+    console.error('❌ Songstats API key format is valid but endpoints are not accessible');
+    
+    // Display recommendations if available
+    if (apiKeyStatus.recommendations && apiKeyStatus.recommendations.length > 0) {
+      const recommendations = apiKeyStatus.recommendations.join('. ');
+      toast.error('Songstats API key validation failed', {
+        description: recommendations
+      });
+    } else {
+      toast.error('Unable to connect to Songstats API', {
+        description: 'Your API key may be inactive or have incorrect permissions'
+      });
     }
     
-    // Run an additional connectivity test to verify API access
+    // Run an additional connectivity test as a final check
     const apiTestPassed = await testSongstatsApi();
     
-    if (!apiTestPassed) {
-      console.warn('API connectivity test failed');
-      toast.warning('Unable to connect to Songstats API', {
-        description: 'Using demo data for now'
-      });
-      return false;
+    if (apiTestPassed) {
+      console.log('✅ Additional API test passed, proceeding with real data');
+      return true;
     }
     
-    // API configuration appears valid
-    console.log('✅ Songstats API is properly configured');
-    return true;
+    console.warn('❌ All API connectivity tests failed, using demo data');
+    return false;
   } catch (error) {
     console.error('Error checking API configuration:', error);
     toast.error('Error checking API configuration', {
