@@ -1,3 +1,4 @@
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
@@ -18,5 +19,10 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  // Define any environment variables that should be exposed to the client
+  define: {
+    // Make sure environment variables are type safe
+    'import.meta.env.VITE_TRACKLISTS_API_KEY': JSON.stringify(process.env.VITE_TRACKLISTS_API_KEY),
   },
 }));

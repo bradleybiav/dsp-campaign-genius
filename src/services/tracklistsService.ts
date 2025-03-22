@@ -1,3 +1,4 @@
+
 import { NormalizedInput } from '@/utils/apiUtils';
 import { toast } from 'sonner';
 
@@ -5,7 +6,8 @@ import { toast } from 'sonner';
 const TRACKLISTS_API_BASE_URL = 'https://api.1001tracklists.com/v1';
 
 // API key would be secured in production environment
-const TRACKLISTS_API_KEY = process.env.TRACKLISTS_API_KEY || 'mock-api-key';
+// Using Vite's import.meta.env instead of process.env
+const TRACKLISTS_API_KEY = import.meta.env.VITE_TRACKLISTS_API_KEY || 'mock-api-key';
 
 /**
  * DJ result interface matching the expected output
