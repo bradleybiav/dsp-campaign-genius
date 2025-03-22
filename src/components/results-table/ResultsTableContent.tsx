@@ -69,8 +69,8 @@ const ResultsTableContent: React.FC<ResultsTableContentProps> = ({ results, load
             // RadioResult
             name = result.station || 'Unknown Station';
             creator = result.dj || result.show || 'Unknown DJ';
-            metric = result.country || 'Unknown';
-            date = result.lastSpin ? formatDate(result.lastSpin) : 'Unknown';
+            metric = result.playsCount ? `${formatNumber(result.playsCount)} plays` : '1+ plays';
+            date = result.lastSpin ? formatDate(result.lastSpin) : 'Recent';
             link = result.airplayLink || '#';
           } else if ('event' in result) {
             // DjResult

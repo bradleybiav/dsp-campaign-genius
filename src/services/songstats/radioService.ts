@@ -1,260 +1,185 @@
+import { RadioResult } from '@/components/ResultsTable';
 import { NormalizedInput } from '@/utils/apiUtils';
 import { callSongstatsApi, getISRCFromSpotifyTrack } from './apiClient';
-import { toast } from 'sonner';
 
 /**
- * Radio results interface matching the expected output
- */
-export interface RadioResult {
-  id: string;
-  station: string;
-  show: string;
-  dj: string;
-  country: string;
-  lastSpin: string;
-  matchedInputs: number[];
-  airplayLink: string;
-  vertical: 'radio';
-}
-
-/**
- * Get radio play data for tracks using the Enterprise API
+ * Get radio plays for a track using the Enterprise API
  */
 export const getRadioPlays = async (
   normalizedInputs: NormalizedInput[]
 ): Promise<RadioResult[]> => {
   try {
     const results: RadioResult[] = [];
-    const processedRadios = new Map<string, RadioResult>();
-    let apiSuccessCalls = 0;
-    let totalApiCalls = 0;
+    const processedStations = new Map<string, RadioResult>();
+    const radioApiStats = { total: 0, successful: 0 };
     
     // Process each input
     for (const input of normalizedInputs) {
-      // For ISRC inputs, use them directly
-      if (input.type === 'isrc') {
-        const isrc = input.id;
-        console.log(`Using direct ISRC input for radio: ${isrc}`);
-        totalApiCalls++;
-        
-        // Get track stats with radio plays using ISRC
-        const trackData = await callSongstatsApi('tracks/stats', { 
-          isrc: isrc,
-          with_radio: "true" // Using string "true" instead of boolean true
-        });
-        
-        if (!trackData || trackData.error) {
-          console.error('Error getting track stats for ISRC:', trackData?.error || 'Unknown error');
-          continue;
-        }
-        
-        apiSuccessCalls++;
-        
-        // Process radio plays from the stats
-        const radioStats = trackData.stats?.find(stat => stat.source === 'radio');
-        
-        if (!radioStats || !radioStats.data) {
-          console.log(`No radio data found for ISRC: ${isrc}`);
-          continue;
-        }
-        
-        // Check if we have detailed plays data
-        if (radioStats.data.plays && radioStats.data.plays.length > 0) {
-          // Log found radio plays for debugging
-          console.log(`Found ${radioStats.data.plays.length} radio plays for ISRC: ${isrc}`);
-          
-          // Process each radio play
-          for (const play of radioStats.data.plays) {
-            const radioKey = `${play.station}-${play.show || ''}-${play.dj || ''}`;
-            
-            if (processedRadios.has(radioKey)) {
-              // If we've seen this radio before, update the matched inputs
-              const existingRadio = processedRadios.get(radioKey)!;
-              if (!existingRadio.matchedInputs.includes(input.inputIndex)) {
-                existingRadio.matchedInputs.push(input.inputIndex);
-              }
-            } else {
-              // Otherwise, create a new result
-              const result: RadioResult = {
-                id: play.id || `radio-${radioKey}-${Date.now()}`,
-                station: play.station || 'Unknown Station',
-                show: play.show || '',
-                dj: play.dj || '',
-                country: play.country || 'Unknown',
-                lastSpin: play.last_spin || play.played_at || new Date().toISOString(),
-                matchedInputs: [input.inputIndex],
-                airplayLink: play.url || '',
-                vertical: 'radio'
-              };
-              
-              processedRadios.set(radioKey, result);
-              results.push(result);
-            }
-          }
-        } 
-        // Handle case where we have summary stats but no individual plays
-        else if (radioStats.data.radio_plays_total && radioStats.data.radio_plays_total > 0) {
-          console.log(`Radio summary data found for ISRC ${isrc}: ${radioStats.data.radio_plays_total} plays across ${radioStats.data.radio_stations_total} stations`);
-          
-          // Create a generic result for the track based on summary data
-          const track = trackData.track || {};
-          const radioKey = `summary-${isrc}`;
-          
-          if (!processedRadios.has(radioKey)) {
-            // Create a summary result entry
-            const result: RadioResult = {
-              id: `radio-summary-${isrc}-${Date.now()}`,
-              station: `${radioStats.data.radio_stations_total || 0} Radio Stations`,
-              show: track.title || 'Unknown Track',
-              dj: track.artist || 'Unknown Artist',
-              country: 'Various',
-              lastSpin: new Date().toISOString(),
-              matchedInputs: [input.inputIndex],
-              airplayLink: '',
-              vertical: 'radio'
-            };
-            
-            processedRadios.set(radioKey, result);
-            results.push(result);
-          } else {
-            // Update matched inputs for existing summary
-            const existingRadio = processedRadios.get(radioKey)!;
-            if (!existingRadio.matchedInputs.includes(input.inputIndex)) {
-              existingRadio.matchedInputs.push(input.inputIndex);
-            }
-          }
-        } else {
-          console.log(`No radio plays found for ISRC: ${isrc}`);
-        }
-        
-        continue; // Skip to next input
-      }
-      
-      // Skip non-Spotify track inputs for radio research
-      if (input.type !== 'spotify_track') continue;
-      
-      // For track URLs, first get the ISRC
       let isrc: string | null = null;
       
-      // Try to get ISRC from Spotify ID
-      isrc = await getISRCFromSpotifyTrack(input.id);
-      
-      if (!isrc) {
-        console.log(`No ISRC found for Spotify track: ${input.id}, skipping`);
+      // For ISRC inputs, use them directly
+      if (input.type === 'isrc') {
+        isrc = input.id;
+        console.log(`Using direct ISRC input for radio: ${isrc}`);
+      } else if (input.type === 'spotify_track') {
+        // For track URLs, first get the ISRC
+        isrc = await getISRCFromSpotifyTrack(input.id);
+        
+        if (!isrc) {
+          console.log(`No ISRC found for Spotify track: ${input.id}, skipping radio lookup`);
+          continue;
+        }
+        
+        console.log(`Found ISRC: ${isrc} for Spotify track: ${input.id}`);
+      } else {
+        // Skip other input types for radio research
         continue;
       }
       
-      console.log(`Found ISRC: ${isrc} for Spotify track: ${input.id}`);
-      totalApiCalls++;
+      if (!isrc) continue;
       
-      // Get track stats with radio plays using ISRC
+      radioApiStats.total++;
+      
+      // Get track stats with radio using ISRC
       const trackData = await callSongstatsApi('tracks/stats', { 
         isrc: isrc,
         with_radio: "true" // Using string "true" instead of boolean true
       });
       
       if (!trackData || trackData.error) {
-        console.error('Error getting track stats:', trackData?.error || 'Unknown error');
+        console.error('Error getting radio data for ISRC:', trackData?.error || 'Unknown error');
         continue;
       }
       
-      apiSuccessCalls++;
+      radioApiStats.successful++;
       
-      // Process radio plays from the stats
-      const radioStats = trackData.stats?.find(stat => stat.source === 'radio');
+      // Find the radio stats section from the response
+      const radioStats = trackData.stats?.find(stat => 
+        stat.source === 'radio' || 
+        (stat.source === 'stats' && stat.data?.radio_plays_total !== undefined)
+      );
       
+      // If no radio data found, continue to next input
       if (!radioStats || !radioStats.data) {
         console.log(`No radio data found for ISRC: ${isrc}`);
         continue;
       }
       
-      // Check if we have detailed plays data
-      if (radioStats.data.plays && radioStats.data.plays.length > 0) {
-        // Log found radio plays for debugging
-        console.log(`Found ${radioStats.data.plays.length} radio plays for ISRC: ${isrc}`);
+      // Log the stats we found
+      const statsData = {
+        radio_plays_total: radioStats.data.radio_plays_total,
+        radio_stations_total: radioStats.data.radio_stations_total,
+        sxm_plays_total: radioStats.data.sxm_plays_total
+      };
+      console.log(`Radio stats data:`, JSON.stringify(statsData));
+      
+      // Check for detailed radio play data
+      const radioPlays = radioStats.data.radio_plays || [];
+      
+      if (radioPlays.length > 0) {
+        // Process detailed play data if available
+        console.log(`Found ${radioPlays.length} radio plays for ISRC: ${isrc}`);
         
-        // Process each radio play
-        for (const play of radioStats.data.plays) {
-          const radioKey = `${play.station}-${play.show || ''}-${play.dj || ''}`;
+        for (const play of radioPlays) {
+          const stationKey = play.station_id || play.station || `station-${Math.random().toString(36).substring(2, 10)}`;
           
-          if (processedRadios.has(radioKey)) {
-            // If we've seen this radio before, update the matched inputs
-            const existingRadio = processedRadios.get(radioKey)!;
-            if (!existingRadio.matchedInputs.includes(input.inputIndex)) {
-              existingRadio.matchedInputs.push(input.inputIndex);
+          if (processedStations.has(stationKey)) {
+            // If we've seen this station before, update the matched inputs
+            const existingStation = processedStations.get(stationKey)!;
+            if (!existingStation.matchedInputs.includes(input.inputIndex)) {
+              existingStation.matchedInputs.push(input.inputIndex);
+            }
+            
+            // Update the play count and last spin date if newer
+            existingStation.playsCount = (existingStation.playsCount || 0) + 1;
+            
+            if (play.date && (!existingStation.lastSpin || play.date > existingStation.lastSpin)) {
+              existingStation.lastSpin = play.date;
             }
           } else {
             // Otherwise, create a new result
             const result: RadioResult = {
-              id: play.id || `radio-${radioKey}-${Date.now()}`,
+              id: stationKey,
               station: play.station || 'Unknown Station',
-              show: play.show || '',
-              dj: play.dj || '',
+              dj: play.dj || undefined,
+              show: play.show || undefined,
               country: play.country || 'Unknown',
-              lastSpin: play.last_spin || play.played_at || new Date().toISOString(),
+              playsCount: 1,
+              lastSpin: play.date || new Date().toISOString(),
+              airplayLink: play.link || undefined,
               matchedInputs: [input.inputIndex],
-              airplayLink: play.url || '',
               vertical: 'radio'
             };
             
-            processedRadios.set(radioKey, result);
+            processedStations.set(stationKey, result);
+            results.push(result);
+          }
+        }
+      } else if (statsData.radio_plays_total > 0) {
+        // Create a summary result when we have total plays but no detailed data
+        console.log(`Radio data found for ISRC ${isrc} but no plays available`);
+        
+        // Create a single result for SiriusXM if there are plays
+        if (statsData.sxm_plays_total > 0) {
+          const sxmKey = 'sirius-xm';
+          
+          if (processedStations.has(sxmKey)) {
+            const existingStation = processedStations.get(sxmKey)!;
+            if (!existingStation.matchedInputs.includes(input.inputIndex)) {
+              existingStation.matchedInputs.push(input.inputIndex);
+            }
+          } else {
+            const result: RadioResult = {
+              id: sxmKey,
+              station: 'SiriusXM',
+              country: 'USA',
+              playsCount: statsData.sxm_plays_total,
+              lastSpin: new Date().toISOString(), // Current date as fallback
+              matchedInputs: [input.inputIndex],
+              vertical: 'radio'
+            };
+            
+            processedStations.set(sxmKey, result);
+            results.push(result);
+          }
+        }
+        
+        // Create a generic terrestrial radio entry if there are plays beyond SXM
+        const terrestrialPlays = statsData.radio_plays_total - (statsData.sxm_plays_total || 0);
+        
+        if (terrestrialPlays > 0) {
+          const radioKey = 'terrestrial-radio';
+          
+          if (processedStations.has(radioKey)) {
+            const existingStation = processedStations.get(radioKey)!;
+            if (!existingStation.matchedInputs.includes(input.inputIndex)) {
+              existingStation.matchedInputs.push(input.inputIndex);
+            }
+          } else {
+            const result: RadioResult = {
+              id: radioKey,
+              station: 'Terrestrial Radio',
+              country: 'Multiple Countries',
+              playsCount: terrestrialPlays,
+              lastSpin: new Date().toISOString(), // Current date as fallback
+              matchedInputs: [input.inputIndex],
+              vertical: 'radio'
+            };
+            
+            processedStations.set(radioKey, result);
             results.push(result);
           }
         }
       }
-      // Handle case where we have summary stats but no individual plays
-      else if (radioStats.data.radio_plays_total && radioStats.data.radio_plays_total > 0) {
-        console.log(`Radio summary data found for ISRC ${isrc}: ${radioStats.data.radio_plays_total} plays across ${radioStats.data.radio_stations_total} stations`);
-        
-        // Create a generic result for the track based on summary data
-        const track = trackData.track || {};
-        const radioKey = `summary-${isrc}`;
-        
-        if (!processedRadios.has(radioKey)) {
-          // Create a summary result entry
-          const result: RadioResult = {
-            id: `radio-summary-${isrc}-${Date.now()}`,
-            station: `${radioStats.data.radio_stations_total || 0} Radio Stations`,
-            show: track.title || 'Unknown Track',
-            dj: track.artist || 'Unknown Artist',
-            country: 'Various',
-            lastSpin: new Date().toISOString(),
-            matchedInputs: [input.inputIndex],
-            airplayLink: '',
-            vertical: 'radio'
-          };
-          
-          processedRadios.set(radioKey, result);
-          results.push(result);
-        } else {
-          // Update matched inputs for existing summary
-          const existingRadio = processedRadios.get(radioKey)!;
-          if (!existingRadio.matchedInputs.includes(input.inputIndex)) {
-            existingRadio.matchedInputs.push(input.inputIndex);
-          }
-        }
-      } else {
-        console.log(`No radio plays found for ISRC: ${isrc}`);
-      }
     }
     
-    // Log summary of radio API calls
-    console.log(`Radio API stats: ${apiSuccessCalls} successful calls out of ${totalApiCalls} total calls`);
+    // Log stats about the API calls
+    console.log(`Radio API stats: ${radioApiStats.successful} successful calls out of ${radioApiStats.total} total calls`);
     console.log(`Radio results: ${results.length}`);
-    
-    if (totalApiCalls > 0 && apiSuccessCalls === 0) {
-      toast.warning("No radio data could be retrieved", {
-        description: "The radio data API endpoint might be unavailable"
-      });
-    }
     
     return results;
   } catch (error) {
     console.error('Error getting radio plays:', error);
-    toast.error("Failed to retrieve radio data", {
-      description: "Please try again later"
-    });
     return [];
   }
 };
-
