@@ -7,6 +7,7 @@ import { getPlaylistPlacements, getRadioPlays, RadioResult } from '@/services/so
 import { getDjPlacements, DjResult } from '@/services/tracklistsService';
 import { getPressResults, PressResult } from '@/services/pressService';
 import { saveCampaign } from '@/services/supabaseService';
+import { generateMockResults } from '@/utils/mockDataGenerator';
 
 export interface FormData {
   campaignName: string;
@@ -32,9 +33,11 @@ export const useResearchForm = () => {
   const [loading, setLoading] = useState(false);
   const [savedCampaignId, setSavedCampaignId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  const [usingMockData, setUsingMockData] = useState(false);
 
   const handleFormSubmit = async (formData: FormData) => {
     setLoading(true);
+    setUsingMockData(false);
     
     try {
       // Normalize inputs
@@ -56,6 +59,9 @@ export const useResearchForm = () => {
         pressResults: []
       };
       
+      // Track if all API calls failed
+      let allApiFailed = true;
+      
       // Execute vertical-specific research based on selected verticals
       const researchPromises: Promise<void>[] = [];
       
@@ -63,6 +69,9 @@ export const useResearchForm = () => {
       if (formData.selectedVerticals.includes('dsp')) {
         const dspPromise = getPlaylistPlacements(normalized)
           .then(results => {
+            if (results.length > 0) {
+              allApiFailed = false;
+            }
             researchResults.dspResults = results;
           });
         researchPromises.push(dspPromise);
@@ -72,6 +81,9 @@ export const useResearchForm = () => {
       if (formData.selectedVerticals.includes('radio')) {
         const radioPromise = getRadioPlays(normalized)
           .then(results => {
+            if (results.length > 0) {
+              allApiFailed = false;
+            }
             researchResults.radioResults = results;
           });
         researchPromises.push(radioPromise);
@@ -81,6 +93,9 @@ export const useResearchForm = () => {
       if (formData.selectedVerticals.includes('dj')) {
         const djPromise = getDjPlacements(normalized)
           .then(results => {
+            if (results.length > 0) {
+              allApiFailed = false;
+            }
             researchResults.djResults = results;
           });
         researchPromises.push(djPromise);
@@ -90,6 +105,9 @@ export const useResearchForm = () => {
       if (formData.selectedVerticals.includes('press')) {
         const pressPromise = getPressResults(normalized)
           .then(results => {
+            if (results.length > 0) {
+              allApiFailed = false;
+            }
             researchResults.pressResults = results;
           });
         researchPromises.push(pressPromise);
@@ -97,6 +115,24 @@ export const useResearchForm = () => {
       
       // Wait for all research to complete
       await Promise.all(researchPromises);
+      
+      // If all API calls failed or returned empty results, use mock data as fallback
+      if (allApiFailed) {
+        console.log('Using mock data as fallback');
+        toast.warning('Unable to reach Songstats API. Using demo data instead.', {
+          description: 'Check your API key or try again later.'
+        });
+        
+        const mockResults = generateMockResults(formData.referenceInputs, formData.selectedVerticals);
+        
+        // Distribute mock results based on verticals
+        researchResults.dspResults = mockResults.filter(r => r.vertical === 'dsp');
+        researchResults.radioResults = mockResults.filter(r => r.vertical === 'radio') as unknown as RadioResult[];
+        researchResults.djResults = mockResults.filter(r => r.vertical === 'dj') as unknown as DjResult[];
+        researchResults.pressResults = mockResults.filter(r => r.vertical === 'press') as unknown as PressResult[];
+        
+        setUsingMockData(true);
+      }
       
       // Update results state
       setResults(researchResults);
@@ -115,9 +151,13 @@ export const useResearchForm = () => {
       
       if (campaignId) {
         setSavedCampaignId(campaignId);
-        toast.success('Research completed and saved to database');
+        toast.success(usingMockData 
+          ? 'Demo data loaded and saved to database' 
+          : 'Research completed and saved to database');
       } else {
-        toast.success('Research completed successfully');
+        toast.success(usingMockData 
+          ? 'Demo data loaded successfully' 
+          : 'Research completed successfully');
         toast.error('Failed to save campaign to database');
       }
       
@@ -130,6 +170,20 @@ export const useResearchForm = () => {
     } catch (error) {
       console.error('Error in research:', error);
       toast.error('Error conducting research');
+      
+      // Use mock data as last resort fallback
+      const mockResults = generateMockResults(formData.referenceInputs, formData.selectedVerticals);
+      setResults({
+        dspResults: mockResults.filter(r => r.vertical === 'dsp'),
+        radioResults: mockResults.filter(r => r.vertical === 'radio') as unknown as RadioResult[],
+        djResults: mockResults.filter(r => r.vertical === 'dj') as unknown as DjResult[],
+        pressResults: mockResults.filter(r => r.vertical === 'press') as unknown as PressResult[]
+      });
+      setShowResults(true);
+      setUsingMockData(true);
+      toast.warning('Unable to reach Songstats API. Using demo data instead.', {
+        description: 'Check your API key or try again later.'
+      });
     } finally {
       setLoading(false);
     }
@@ -141,6 +195,7 @@ export const useResearchForm = () => {
     loading,
     resultsRef,
     savedCampaignId,
+    usingMockData,
     handleFormSubmit
   };
 };

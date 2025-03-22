@@ -12,6 +12,7 @@ const Index = () => {
     results,
     loading,
     resultsRef,
+    usingMockData,
     handleFormSubmit
   } = useResearchForm();
 
@@ -71,6 +72,7 @@ const Index = () => {
               selectedVerticals={selectedFilterVerticals}
               onSelectedVerticalsChange={setSelectedFilterVerticals}
               resultsRef={resultsRef}
+              usingMockData={usingMockData}
             />
           )}
         </div>
