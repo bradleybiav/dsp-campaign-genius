@@ -15,6 +15,8 @@ export const callSongstatsApi = async (
   retries = 0
 ) => {
   try {
+    console.log(`Calling Songstats API path: ${path}, params:`, params);
+    
     const { data, error } = await supabase.functions.invoke('songstats', {
       body: { path, params },
     });
@@ -66,6 +68,7 @@ export const callSongstatsApi = async (
       return null;
     }
 
+    console.log(`Songstats API response for ${path}:`, data);
     return data;
   } catch (error) {
     console.error('Error in callSongstatsApi:', error);
@@ -87,6 +90,8 @@ export const callSongstatsApi = async (
  */
 export const getSongstatsId = async (spotifyId: string, type: 'track' | 'artist'): Promise<string | null> => {
   try {
+    console.log(`Getting Songstats ID for Spotify ${type} ID: ${spotifyId}`);
+    
     // Call the Edge Function to get Songstats ID
     const data = await callSongstatsApi('search', {
       q: `spotify:${type}:${spotifyId}`
@@ -97,6 +102,7 @@ export const getSongstatsId = async (spotifyId: string, type: 'track' | 'artist'
       return null;
     }
     
+    console.log(`Songstats ID for Spotify ${type} ID ${spotifyId}:`, data.id);
     return data.id;
   } catch (error) {
     console.error('Error getting Songstats ID:', error);

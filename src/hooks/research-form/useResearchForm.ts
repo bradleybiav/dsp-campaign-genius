@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { normalizeInputs } from '@/utils/apiUtils';
@@ -35,29 +34,39 @@ export function useResearchForm() {
       }
       
       console.log('Normalized inputs:', normalized);
+      console.log('Selected verticals:', formData.selectedVerticals);
       
-      // Execute research for selected verticals
-      const researchResults = await executeResearch(normalized, formData.selectedVerticals);
+      // Check if Songstats API key is properly configured before making any API calls
+      const apiConfigured = await checkAPIConfiguration();
       
-      // Check if we actually got any results
-      const hasResults = 
-        researchResults.dspResults.length > 0 ||
-        researchResults.radioResults.length > 0 ||
-        researchResults.djResults.length > 0 ||
-        researchResults.pressResults.length > 0;
-      
-      // Only use mock data if we have no results at all
-      if (!hasResults) {
-        console.warn('No results found from APIs, checking API configuration');
+      if (!apiConfigured) {
+        toast.error('Songstats API key is not configured', {
+          description: 'Please set your Songstats API key in the Supabase Edge Function secrets'
+        });
+        setUsingMockData(true);
         
-        // Check if Songstats API key is properly configured
-        const apiConfigured = await checkAPIConfiguration();
+        // Generate mock data as fallback since API key is not configured
+        const mockResearchResults = generateMockResearchResults(
+          formData.referenceInputs, 
+          formData.selectedVerticals
+        );
         
-        if (!apiConfigured) {
-          toast.error('Songstats API key is not configured', {
-            description: 'Please check your Supabase Edge Function configuration'
-          });
-          setUsingMockData(true);
+        setResults(mockResearchResults);
+        setShowResults(true);
+      } else {
+        // API key is configured, execute real research
+        console.log('API key is configured, executing real research');
+        const researchResults = await executeResearch(normalized, formData.selectedVerticals);
+        
+        // Check if we actually got any results
+        const hasResults = 
+          researchResults.dspResults.length > 0 ||
+          researchResults.radioResults.length > 0 ||
+          researchResults.djResults.length > 0 ||
+          researchResults.pressResults.length > 0;
+        
+        if (!hasResults) {
+          console.warn('No results found from APIs, falling back to mock data');
           
           // Generate mock data as fallback
           const mockResearchResults = generateMockResearchResults(
@@ -67,17 +76,20 @@ export function useResearchForm() {
           
           // Use mock results
           Object.assign(researchResults, mockResearchResults);
+          setUsingMockData(true);
         } else {
-          // No results but API key is configured - likely no matches found
-          toast.info('No matching results found', {
-            description: 'Try different reference tracks or artists'
+          console.log('Real API results found:', {
+            dsp: researchResults.dspResults.length,
+            radio: researchResults.radioResults.length,
+            dj: researchResults.djResults.length,
+            press: researchResults.pressResults.length
           });
         }
+        
+        // Update results state
+        setResults(researchResults);
+        setShowResults(true);
       }
-      
-      // Update results state
-      setResults(researchResults);
-      setShowResults(true);
       
       // Save campaign to Supabase
       try {
@@ -88,7 +100,7 @@ export function useResearchForm() {
             selectedVerticals: formData.selectedVerticals
           },
           normalized,
-          researchResults
+          results
         );
         
         if (campaignId) {

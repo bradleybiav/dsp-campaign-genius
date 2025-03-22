@@ -11,7 +11,11 @@ const RETRY_DELAY_MS = 500;
  */
 async function fetchWithRetry(url: string, options: RequestInit, retries = 0): Promise<Response> {
   try {
+    console.log(`Making request to: ${url}`);
+    console.log(`Request headers:`, options.headers);
+    
     const response = await fetch(url, options);
+    console.log(`Response status: ${response.status}`);
     
     // Handle rate limiting (429) specifically
     if (response.status === 429 && retries < MAX_RETRIES) {
@@ -29,6 +33,7 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 0): P
     
     return response;
   } catch (error) {
+    console.error(`Fetch error:`, error);
     // Handle network errors
     if (retries < MAX_RETRIES) {
       console.log(`Network error, retry ${retries + 1}/${MAX_RETRIES} after ${RETRY_DELAY_MS}ms`);
@@ -47,6 +52,7 @@ serve(async (req) => {
 
   try {
     const { path, params } = await req.json()
+    console.log(`Request received for path: ${path}, params:`, params);
     
     // Get the API key from Supabase secrets
     const apiKey = Deno.env.get("SONGSTATS_API_KEY")
