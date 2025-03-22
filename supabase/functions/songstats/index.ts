@@ -56,6 +56,7 @@ async function processApiResponse(response: Response): Promise<object> {
       
       // If non-success status code, include error information
       if (!response.ok) {
+        console.log(`API responded with status ${response.status}: ${text.substring(0, 200)}`);
         return {
           ...data,
           error: data.error || `Songstats API responded with status ${response.status}`,
@@ -89,7 +90,7 @@ serve(async (req) => {
 
   try {
     const { path, params } = await req.json();
-    console.log(`Request for path: ${path}`);
+    console.log(`Request for path: ${path}, params:`, params);
     
     // Get API key from environment
     const apiKey = Deno.env.get("SONGSTATS_API_KEY");
@@ -106,13 +107,19 @@ serve(async (req) => {
     }
 
     try {
+      // Fix for the API endpoint structure - try both v1 and updated endpoints
+      const isV2Request = path.startsWith('v2/');
+      const apiPath = isV2Request ? path : `v1/${path}`;
+      
       // Build the API URL with query parameters
-      let apiUrl = `${SONGSTATS_API_URL}/${path}`;
+      let apiUrl = `https://api.songstats.com/${apiPath}`;
       
       if (params && Object.keys(params).length > 0) {
         const queryParams = new URLSearchParams(params);
         apiUrl = `${apiUrl}?${queryParams.toString()}`;
       }
+      
+      console.log(`Calling Songstats API at: ${apiUrl}`);
       
       // Call Songstats API with retry logic
       const response = await fetchWithRetry(apiUrl, {
@@ -125,6 +132,7 @@ serve(async (req) => {
 
       // Process the response
       const responseData = await processApiResponse(response);
+      console.log(`API response status: ${response.status}`);
       
       // Return processed data with CORS headers
       return new Response(

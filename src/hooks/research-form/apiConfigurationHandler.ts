@@ -10,46 +10,40 @@ export async function testSongstatsApi() {
   try {
     console.log('Testing Songstats API connection...');
     
-    // Step 1: Test the mappings endpoint with a known track ID
-    console.log('Testing mappings endpoint with a known track');
-    const testTrackId = '3Wrjm47oTz2sjIgck11l5e'; // Billie Eilish - bad guy
-    const testTrackResult = await callSongstatsApi('mappings/spotify', { 
-      id: testTrackId,
-      type: 'track'
-    });
+    // Try different endpoint formats to account for API version differences
+    // First try v2 health endpoint
+    let testResult = await callSongstatsApi('v2/health');
     
-    // If we get any response, consider it a success for now
-    // Even if it's just to confirm the API is accessible
-    console.log('Mappings endpoint test result:', testTrackResult);
-    
-    // If we get a valid result with a songstats_id, that's ideal
-    if (testTrackResult && testTrackResult.songstats_id) {
-      console.log('✅ Mappings endpoint test successful!');
-      return true;
+    // If that fails, try v1 health
+    if (!testResult) {
+      testResult = await callSongstatsApi('health');
     }
     
-    // If we got a response but no songstats_id, check if it's a recognizable error
-    if (testTrackResult && (testTrackResult.error || testTrackResult.status)) {
-      // If it's a 404, that might be expected for this specific track
-      // At least we know the API is responding
-      if (testTrackResult.status === 404) {
-        console.log('API responded with 404 - this is acceptable for testing connectivity');
-        return true;
-      }
+    // If health endpoints fail, try a specific test with a popular track ID
+    if (!testResult) {
+      console.log('Testing with a specific track ID...');
+      const testTrackId = '3Wrjm47oTz2sjIgck11l5e'; // Billie Eilish - bad guy
       
-      console.warn('API responded but with an error:', testTrackResult);
-      // Still consider it a partial success since we got a response
+      // Try both v1 and v2 formats
+      testResult = await callSongstatsApi('v2/tracks/spotify', { 
+        id: testTrackId
+      });
+      
+      if (!testResult) {
+        testResult = await callSongstatsApi('tracks/spotify', { 
+          id: testTrackId
+        });
+      }
+    }
+    
+    // If we get any response, consider it a success
+    if (testResult) {
+      console.log('✅ API test successful!', testResult);
       return true;
     }
     
-    // No response at all is a failure
-    if (testTrackResult === null || testTrackResult === undefined) {
-      console.error('No response from Songstats API');
-      return false;
-    }
-    
-    // Default to success if we got here
-    return true;
+    console.error('❌ All API tests failed');
+    return false;
   } catch (error) {
     console.error('❌ Songstats API test failed with error:', error);
     return false;
@@ -78,16 +72,39 @@ export async function checkAPIConfiguration(): Promise<boolean> {
     
     if (!apiKeyStatus?.configured) {
       console.warn('API key is not configured');
+      toast.warning('Songstats API key is not set up', {
+        description: 'Contact administrator to configure the API'
+      });
       return false;
     }
     
-    // For now, skip the API connectivity test - we'll let the actual API calls determine success
-    // The API might respond differently to our test calls vs actual ones
+    if (apiKeyStatus.apiError) {
+      console.warn('API key validation failed:', apiKeyStatus.apiError);
+      toast.warning('Songstats API key may be invalid', {
+        description: 'Using demo data as fallback'
+      });
+      // Continue with reduced confidence
+    }
     
-    // Return true to allow the system to attempt real API calls
+    // Run an additional connectivity test to verify API access
+    const apiTestPassed = await testSongstatsApi();
+    
+    if (!apiTestPassed) {
+      console.warn('API connectivity test failed');
+      toast.warning('Unable to connect to Songstats API', {
+        description: 'Using demo data for now'
+      });
+      return false;
+    }
+    
+    // API configuration appears valid
+    console.log('✅ Songstats API is properly configured');
     return true;
   } catch (error) {
     console.error('Error checking API configuration:', error);
+    toast.error('Error checking API configuration', {
+      description: 'Using demo data for now'
+    });
     return false;
   }
 }

@@ -5,7 +5,7 @@ import { callSongstatsApi, getSongstatsId } from './apiClient';
 
 /**
  * Get playlist placements for a track
- * Updated to match current Songstats API documentation
+ * Updated to handle different API response formats
  */
 export const getPlaylistPlacements = async (
   normalizedInputs: NormalizedInput[]
@@ -25,13 +25,35 @@ export const getPlaylistPlacements = async (
         input.type === 'spotify_track' ? 'track' : 'artist'
       );
       
-      if (!songstatsId) continue;
+      if (!songstatsId) {
+        console.log(`No Songstats ID found for ${input.type} ${input.id}, using direct ID`);
+        continue; 
+      }
       
-      // Call the playlists endpoint - updated path format
-      const data = await callSongstatsApi(
-        `${input.type === 'spotify_track' ? 'track' : 'artist'}/${songstatsId}/playlists`,
-        { platform: 'spotify' }  // Specify platform as per docs
+      // Try multiple endpoint patterns
+      const entityType = input.type === 'spotify_track' ? 'track' : 'artist';
+      
+      // Try v2 endpoint first (modern format)
+      let data = await callSongstatsApi(
+        `v2/${entityType}s/${songstatsId}/playlists`,
+        { platform: 'spotify' }
       );
+      
+      // If that fails, try v1 format
+      if (!data || data.error) {
+        data = await callSongstatsApi(
+          `${entityType}/${songstatsId}/playlists`,
+          { platform: 'spotify' }
+        );
+      }
+      
+      // Last attempt - try legacy format
+      if (!data || data.error) {
+        data = await callSongstatsApi(
+          `${entityType}s/${songstatsId}/playlists`,
+          { platform: 'spotify' }
+        );
+      }
       
       if (!data || !data.playlists || data.error) {
         console.error('Error getting playlists:', data?.error || 'Unknown error');
@@ -53,11 +75,11 @@ export const getPlaylistPlacements = async (
           const result: PlaylistResult = {
             id: playlistKey,
             playlistName: playlist.name,
-            curatorName: playlist.curator?.name || 'Unknown',
-            followerCount: playlist.followers,
-            lastUpdated: playlist.last_updated,
+            curatorName: playlist.curator?.name || playlist.owner?.name || 'Unknown',
+            followerCount: playlist.followers || playlist.follower_count || 0,
+            lastUpdated: playlist.last_updated || playlist.updated_at || new Date().toISOString(),
             matchedInputs: [input.inputIndex],
-            playlistUrl: playlist.url,
+            playlistUrl: playlist.url || playlist.external_url || '',
             vertical: 'dsp'
           };
           

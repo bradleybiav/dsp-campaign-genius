@@ -11,11 +11,11 @@ const RETRY_DELAY_MS = 1000;
  */
 export const callSongstatsApi = async (
   path: string, 
-  params: Record<string, string> = {},
+  params: Record<string, string | number> = {},
   retries = 0
 ) => {
   try {
-    console.log(`Calling Songstats API: ${path}`);
+    console.log(`Calling Songstats API: ${path}`, params);
     
     const startTime = Date.now();
     const { data, error } = await supabase.functions.invoke('songstats', {
@@ -130,23 +130,54 @@ function delay(ms: number): Promise<void> {
 
 /**
  * Get Songstats ID from Spotify URL
+ * Updated to try different endpoint structures
  */
 export const getSongstatsId = async (spotifyId: string, type: 'track' | 'artist'): Promise<string | null> => {
   try {
     console.log(`Getting Songstats ID for Spotify ${type}: ${spotifyId}`);
     
-    // Call the Edge Function
-    const data = await callSongstatsApi('mappings/spotify', {
+    // Try updated endpoint path first (v2)
+    let data = await callSongstatsApi(`v2/mappings/spotify`, {
       id: spotifyId,
       type: type
     });
+    
+    // If that fails, try legacy endpoint (without explicit v1)
+    if (!data || data.error) {
+      console.log(`Retrying with legacy mapping endpoint format...`);
+      data = await callSongstatsApi(`mappings/spotify`, {
+        id: spotifyId,
+        type: type
+      });
+    }
+    
+    // Try one more direct format if needed
+    if (!data || data.error) {
+      console.log(`Retrying with direct ID lookup...`);
+      
+      // Try direct lookup - format may vary by API version
+      const directPath = type === 'track' 
+        ? `tracks/${spotifyId}` 
+        : `artists/${spotifyId}`;
+      
+      data = await callSongstatsApi(directPath);
+    }
     
     if (!data) {
       console.log(`No mapping found for ${type} ${spotifyId}`);
       return null;
     }
     
-    const songstatsId = data.songstats_id;
+    // Extract ID based on different possible response formats
+    let songstatsId = null;
+    
+    if (data.songstats_id) {
+      songstatsId = data.songstats_id;
+    } else if (data.id) {
+      songstatsId = data.id;
+    } else if (data.data && data.data.id) {
+      songstatsId = data.data.id;
+    }
     
     if (!songstatsId) {
       console.log(`Songstats ID not found in response for ${type} ${spotifyId}`);
