@@ -9,7 +9,256 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      campaigns: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      dj_results: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          date: string
+          dj: string
+          event: string
+          id: string
+          location: string
+          matched_inputs: number[] | null
+          tracklist_url: string
+          vertical: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          date: string
+          dj: string
+          event: string
+          id?: string
+          location: string
+          matched_inputs?: number[] | null
+          tracklist_url: string
+          vertical?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          date?: string
+          dj?: string
+          event?: string
+          id?: string
+          location?: string
+          matched_inputs?: number[] | null
+          tracklist_url?: string
+          vertical?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dj_results_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dsp_results: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          curator_name: string
+          follower_count: number
+          id: string
+          last_updated: string
+          matched_inputs: number[] | null
+          playlist_name: string
+          playlist_url: string
+          vertical: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          curator_name: string
+          follower_count: number
+          id?: string
+          last_updated: string
+          matched_inputs?: number[] | null
+          playlist_name: string
+          playlist_url: string
+          vertical?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          curator_name?: string
+          follower_count?: number
+          id?: string
+          last_updated?: string
+          matched_inputs?: number[] | null
+          playlist_name?: string
+          playlist_url?: string
+          vertical?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dsp_results_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      press_results: {
+        Row: {
+          article_title: string
+          campaign_id: string | null
+          created_at: string
+          date: string
+          id: string
+          link: string
+          matched_inputs: number[] | null
+          outlet: string
+          vertical: string | null
+          writer: string
+        }
+        Insert: {
+          article_title: string
+          campaign_id?: string | null
+          created_at?: string
+          date: string
+          id?: string
+          link: string
+          matched_inputs?: number[] | null
+          outlet: string
+          vertical?: string | null
+          writer: string
+        }
+        Update: {
+          article_title?: string
+          campaign_id?: string | null
+          created_at?: string
+          date?: string
+          id?: string
+          link?: string
+          matched_inputs?: number[] | null
+          outlet?: string
+          vertical?: string | null
+          writer?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "press_results_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      radio_results: {
+        Row: {
+          airplay_link: string
+          campaign_id: string | null
+          country: string
+          created_at: string
+          dj: string
+          id: string
+          last_spin: string
+          matched_inputs: number[] | null
+          show: string
+          station: string
+          vertical: string | null
+        }
+        Insert: {
+          airplay_link: string
+          campaign_id?: string | null
+          country: string
+          created_at?: string
+          dj: string
+          id?: string
+          last_spin: string
+          matched_inputs?: number[] | null
+          show: string
+          station: string
+          vertical?: string | null
+        }
+        Update: {
+          airplay_link?: string
+          campaign_id?: string | null
+          country?: string
+          created_at?: string
+          dj?: string
+          id?: string
+          last_spin?: string
+          matched_inputs?: number[] | null
+          show?: string
+          station?: string
+          vertical?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "radio_results_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reference_inputs: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          id: string
+          input_index: number
+          input_type: string
+          input_url: string
+          normalized_id: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          id?: string
+          input_index: number
+          input_type: string
+          input_url: string
+          normalized_id: string
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          id?: string
+          input_index?: number
+          input_type?: string
+          input_url?: string
+          normalized_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reference_inputs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

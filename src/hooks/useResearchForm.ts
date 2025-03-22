@@ -6,6 +6,7 @@ import { normalizeInputs } from '@/utils/apiUtils';
 import { getPlaylistPlacements, getRadioPlays, RadioResult } from '@/services/songstatsService';
 import { getDjPlacements, DjResult } from '@/services/tracklistsService';
 import { getPressResults, PressResult } from '@/services/pressService';
+import { saveCampaign } from '@/services/supabaseService';
 
 export interface FormData {
   campaignName: string;
@@ -29,6 +30,7 @@ export const useResearchForm = () => {
     pressResults: []
   });
   const [loading, setLoading] = useState(false);
+  const [savedCampaignId, setSavedCampaignId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
   const handleFormSubmit = async (formData: FormData) => {
@@ -100,7 +102,20 @@ export const useResearchForm = () => {
       setResults(researchResults);
       setShowResults(true);
       
-      toast.success('Research completed successfully');
+      // Save campaign to Supabase
+      const campaignId = await saveCampaign(
+        formData,
+        normalized,
+        researchResults
+      );
+      
+      if (campaignId) {
+        setSavedCampaignId(campaignId);
+        toast.success('Research completed and saved to database');
+      } else {
+        toast.success('Research completed successfully');
+        toast.error('Failed to save campaign to database');
+      }
       
       // Scroll to results
       setTimeout(() => {
@@ -121,6 +136,7 @@ export const useResearchForm = () => {
     results,
     loading,
     resultsRef,
+    savedCampaignId,
     handleFormSubmit
   };
 };
