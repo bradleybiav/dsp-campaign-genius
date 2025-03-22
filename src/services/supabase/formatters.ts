@@ -32,6 +32,7 @@ export const formatResultsForFrontend = {
       country: r.country,
       lastSpin: r.last_spin,
       airplayLink: r.airplay_link,
+      playsCount: r.plays_count, // Make sure to include the plays_count field
       matchedInputs: r.matched_inputs,
       vertical: r.vertical
     }));
