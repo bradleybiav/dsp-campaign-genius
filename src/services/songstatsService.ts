@@ -1,9 +1,7 @@
+
 import { fetchWithTimeout, NormalizedInput } from '@/utils/apiUtils';
 import { PlaylistResult } from '@/components/ResultsTable';
-
-// Mock API key - in production, this would be stored securely
-const SONGSTATS_API_KEY = 'mock-api-key';
-const SONGSTATS_API_URL = 'https://api.songstats.com/v1';
+import { supabase } from "@/integrations/supabase/client";
 
 // Response types for Songstats API
 interface SongstatsSearchResponse {
@@ -38,29 +36,45 @@ interface SongstatsRadioResponse {
 }
 
 /**
+ * Call Songstats API securely through Supabase Edge Function
+ */
+const callSongstatsApi = async (
+  path: string, 
+  params: Record<string, string> = {}
+) => {
+  try {
+    const { data, error } = await supabase.functions.invoke('songstats', {
+      body: { path, params },
+    });
+
+    if (error) {
+      console.error('Error calling Songstats API:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in callSongstatsApi:', error);
+    return null;
+  }
+};
+
+/**
  * Get Songstats ID from Spotify URL
  */
 export const getSongstatsId = async (spotifyId: string, type: 'track' | 'artist'): Promise<string | null> => {
   try {
-    // In a real implementation, this would call the Songstats API
-    // For now, we'll simulate a response
-    console.log(`Getting Songstats ID for ${type} ${spotifyId}`);
+    // Call the Edge Function to get Songstats ID
+    const data = await callSongstatsApi('search', {
+      q: `spotify:${type}:${spotifyId}`
+    });
     
-    // Mock response - in production, this would call the actual API
-    // const response = await fetchWithTimeout(
-    //   `${SONGSTATS_API_URL}/search?q=spotify:${type}:${spotifyId}`,
-    //   {
-    //     headers: {
-    //       'Authorization': `Bearer ${SONGSTATS_API_KEY}`,
-    //       'Content-Type': 'application/json'
-    //     }
-    //   }
-    // );
-    // const data: SongstatsSearchResponse = await response.json();
-    // return data.id;
+    if (!data || data.error) {
+      console.error('Error getting Songstats ID:', data?.error || 'Unknown error');
+      return null;
+    }
     
-    // Return a mock ID based on the input
-    return `songstats-${type}-${spotifyId.substring(0, 8)}`;
+    return data.id;
   } catch (error) {
     console.error('Error getting Songstats ID:', error);
     return null;
@@ -90,21 +104,16 @@ export const getPlaylistPlacements = async (
       
       if (!songstatsId) continue;
       
-      // In a real implementation, this would call the Songstats API
-      // Mock playlist data based on input index
-      const playlists = Array(5).fill(null).map((_, i) => ({
-        id: `playlist-${input.inputIndex}-${i}`,
-        name: `Playlist ${i} for Input ${input.inputIndex}`,
-        curator: { name: `Curator ${i}` },
-        followers: 10000 + (input.inputIndex * 1000) + (i * 500),
-        last_updated: new Date(
-          Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000
-        ).toISOString(),
-        url: `https://open.spotify.com/playlist/mock${input.inputIndex}${i}`
-      }));
+      // Call the playlists endpoint
+      const data = await callSongstatsApi(`${input.type === 'spotify_track' ? 'tracks' : 'artists'}/${songstatsId}/playlists`);
+      
+      if (!data || !data.playlists || data.error) {
+        console.error('Error getting playlists:', data?.error || 'Unknown error');
+        continue;
+      }
       
       // Process each playlist
-      for (const playlist of playlists) {
+      for (const playlist of data.playlists) {
         const playlistKey = playlist.id;
         
         if (processedPlaylists.has(playlistKey)) {
@@ -173,22 +182,16 @@ export const getRadioPlays = async (
       const songstatsId = await getSongstatsId(input.id, 'track');
       if (!songstatsId) continue;
       
-      // In a real implementation, this would call the Songstats API
-      // Mock radio data based on input index
-      const radioPlays = Array(3).fill(null).map((_, i) => ({
-        id: `radio-${input.inputIndex}-${i}`,
-        station: ['BBC Radio 1', 'KEXP', 'Triple J', 'NTS Radio'][i % 4],
-        show: [`Essential Mix`, `Morning Show`, `Drive Time`][i % 3],
-        dj: [`Pete Tong`, `Mary Anne Hobbs`, `Zane Lowe`][i % 3],
-        country: ['UK', 'US', 'AU', 'Global'][i % 4],
-        last_spin: new Date(
-          Date.now() - Math.floor(Math.random() * 14) * 24 * 60 * 60 * 1000
-        ).toISOString(),
-        url: `https://radiostats.songstats.com/station/mock-${i}`
-      }));
+      // Call the radio endpoint
+      const data = await callSongstatsApi(`tracks/${songstatsId}/radio`);
+      
+      if (!data || !data.radiostats || data.error) {
+        console.error('Error getting radio plays:', data?.error || 'Unknown error');
+        continue;
+      }
       
       // Process each radio play
-      for (const play of radioPlays) {
+      for (const play of data.radiostats) {
         const radioKey = `${play.station}-${play.show}-${play.dj}`;
         
         if (processedRadios.has(radioKey)) {
@@ -200,10 +203,10 @@ export const getRadioPlays = async (
         } else {
           // Otherwise, create a new result
           const result: RadioResult = {
-            id: play.id,
+            id: play.id || `radio-${radioKey}`,
             station: play.station,
-            show: play.show,
-            dj: play.dj,
+            show: play.show || '',
+            dj: play.dj || '',
             country: play.country,
             lastSpin: play.last_spin,
             matchedInputs: [input.inputIndex],
