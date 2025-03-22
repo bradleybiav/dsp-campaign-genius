@@ -7,7 +7,7 @@ export interface PlaylistResult {
   lastUpdated: string;
   playlistUrl: string;
   matchedInputs: number[]; // Ensure this is number[] not string[]
-  vertical?: string;
+  vertical: 'dsp';
 }
 
 export interface RadioResult {
@@ -19,7 +19,7 @@ export interface RadioResult {
   lastSpin: string;
   airplayLink: string;
   matchedInputs: number[];
-  vertical?: string;
+  vertical: 'radio';
 }
 
 export interface DjResult {
@@ -30,7 +30,7 @@ export interface DjResult {
   date: string;
   tracklistUrl: string;
   matchedInputs: number[];
-  vertical?: string;
+  vertical: 'dj';
 }
 
 export interface PressResult {
@@ -41,7 +41,7 @@ export interface PressResult {
   date: string;
   link: string;
   matchedInputs: number[];
-  vertical?: string;
+  vertical: 'press';
 }
 
 export interface ResultsTableProps {

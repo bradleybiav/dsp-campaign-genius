@@ -1,9 +1,6 @@
 
 import { useState } from 'react';
-import { PlaylistResult } from '@/components/ResultsTable';
-import { RadioResult } from '@/services/songstatsService';
-import { DjResult } from '@/services/tracklistsService';
-import { PressResult } from '@/services/pressService';
+import type { PlaylistResult, RadioResult, DjResult, PressResult } from '@/components/results-table/types';
 
 export interface FilteredResults {
   dspResults: PlaylistResult[];
