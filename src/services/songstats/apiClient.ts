@@ -17,12 +17,17 @@ export const callSongstatsApi = async (
   try {
     console.log(`Calling Songstats API path: ${path}, params:`, params);
     
+    const startTime = Date.now();
     const { data, error } = await supabase.functions.invoke('songstats', {
       body: { path, params },
     });
+    const duration = Date.now() - startTime;
+    
+    console.log(`Songstats API call took ${duration}ms`);
 
     if (error) {
       console.error('Error calling Songstats API:', error);
+      console.error('Error details:', error.message, error.name, error.cause);
       
       // Handle rate limiting or temporary server errors
       if ((error.message?.includes('429') || error.message?.includes('50')) && retries < MAX_CLIENT_RETRIES) {
@@ -99,6 +104,13 @@ export const getSongstatsId = async (spotifyId: string, type: 'track' | 'artist'
     
     if (!data || data.error) {
       console.error('Error getting Songstats ID:', data?.error || 'Unknown error');
+      return null;
+    }
+    
+    console.log(`Songstats ID search response:`, data);
+    
+    if (!data.id) {
+      console.error(`Songstats ID not found for Spotify ${type} ID ${spotifyId}`);
       return null;
     }
     

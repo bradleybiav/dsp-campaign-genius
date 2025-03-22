@@ -6,6 +6,7 @@ import { getRadioPlays } from '@/services/songstats';
 import { getDjPlacements } from '@/services/tracklistsService';
 import { getPressResults } from '@/services/pressService';
 import type { ResearchResults } from './types';
+import { callSongstatsApi } from '@/services/songstats/apiClient';
 
 // Consistent error handling function
 const handleApiError = (service: string, error: any) => {
@@ -23,10 +24,44 @@ const handleApiError = (service: string, error: any) => {
   return errorMessage;
 };
 
+// Diagnostic function to test the Songstats API
+async function testSongstatsApi() {
+  try {
+    console.log('Testing Songstats API connection...');
+    
+    // Test a simple endpoint to see if the API is responding
+    const testResult = await callSongstatsApi('search', { 
+      q: 'spotify:track:3Wrjm47oTz2sjIgck11l5e' // Billie Eilish - bad guy
+    });
+    
+    console.log('Songstats API test result:', testResult);
+    
+    if (testResult && testResult.id) {
+      console.log('✅ Songstats API test successful!');
+      return true;
+    } else {
+      console.error('❌ Songstats API test failed - invalid response format:', testResult);
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Songstats API test failed with error:', error);
+    return false;
+  }
+}
+
 export async function executeResearch(
   normalizedInputs: NormalizedInput[],
   selectedVerticals: string[]
 ): Promise<ResearchResults> {
+  // Test Songstats API connection first
+  const apiConnected = await testSongstatsApi();
+  if (!apiConnected) {
+    console.warn('Songstats API connection test failed, research results may be limited');
+    toast.error('Unable to connect to Songstats API', {
+      description: 'Check Edge Function logs for details'
+    });
+  }
+  
   // Create an object to store results for each vertical
   const researchResults: ResearchResults = {
     dspResults: [],
@@ -119,7 +154,12 @@ export async function checkAPIConfiguration(): Promise<boolean> {
     }
     
     const apiKeyStatus = await apiKeyCheck.json();
-    console.log('API key configuration status:', apiKeyStatus.configured);
+    console.log('API key configuration status:', apiKeyStatus);
+    
+    if (!apiKeyStatus.configured) {
+      console.error('API key is not configured or empty. Length:', apiKeyStatus.apiKeyLength);
+      return false;
+    }
     
     return apiKeyStatus.configured;
   } catch (error) {

@@ -17,6 +17,21 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 0): P
     const response = await fetch(url, options);
     console.log(`Response status: ${response.status}`);
     
+    // For debugging, log response headers and body preview
+    const headers = Object.fromEntries([...response.headers.entries()]);
+    console.log(`Response headers:`, headers);
+    
+    // Clone response to be able to read body and still return original response
+    const clonedResponse = response.clone();
+    let bodyPreview = "";
+    try {
+      const responseText = await clonedResponse.text();
+      bodyPreview = responseText.substring(0, 500) + (responseText.length > 500 ? '...' : '');
+      console.log(`Response body preview:`, bodyPreview);
+    } catch (e) {
+      console.error(`Error reading response body:`, e);
+    }
+    
     // Handle rate limiting (429) specifically
     if (response.status === 429 && retries < MAX_RETRIES) {
       console.log(`Rate limited, retry ${retries + 1}/${MAX_RETRIES} after ${RETRY_DELAY_MS}ms`);
@@ -67,6 +82,9 @@ serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
       )
     }
+
+    // Log API key information (safely)
+    console.log(`API key information: length=${apiKey.length}, first4Chars=${apiKey.substring(0, 4)}..., last4Chars=...${apiKey.substring(apiKey.length - 4)}`);
 
     // Construct URL with query parameters
     let url = `${SONGSTATS_API_URL}/${path}`
