@@ -34,7 +34,7 @@ export const getPlaylistPlacements = async (
       // Get track stats with playlists using ISRC
       const trackData = await callSongstatsApi('tracks/stats', { 
         isrc: isrc,
-        with_playlists: "true" // Changed from boolean to string
+        with_playlists: "true" // Using string "true" instead of boolean true
       });
       
       if (!trackData || trackData.error) {
