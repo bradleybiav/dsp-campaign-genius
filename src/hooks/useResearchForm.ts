@@ -104,7 +104,11 @@ export const useResearchForm = () => {
       
       // Save campaign to Supabase
       const campaignId = await saveCampaign(
-        formData,
+        {
+          name: formData.campaignName,
+          referenceInputs: formData.referenceInputs,
+          selectedVerticals: formData.selectedVerticals
+        },
         normalized,
         researchResults
       );

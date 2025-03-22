@@ -28,18 +28,18 @@ export const saveCampaign = async (
 ): Promise<string | null> => {
   try {
     // Insert campaign record
-    const { data: campaignData, error: campaignError } = await supabase
+    const { data: campaign, error: campaignError } = await supabase
       .from('campaigns')
       .insert([{ name: campaignData.name }])
       .select('id')
       .single();
 
-    if (campaignError || !campaignData) {
+    if (campaignError || !campaign) {
       console.error('Error saving campaign:', campaignError);
       return null;
     }
 
-    const campaignId = campaignData.id;
+    const campaignId = campaign.id;
 
     // Save reference inputs
     if (normalizedInputs.length > 0) {
