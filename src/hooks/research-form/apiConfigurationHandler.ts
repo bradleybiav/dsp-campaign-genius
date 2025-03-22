@@ -16,7 +16,7 @@ export async function testSongstatsApi() {
     // Try to get stats for the test ISRC
     const testResult = await callSongstatsApi('tracks/stats', { 
       isrc: testISRC, 
-      with_playlists: true 
+      with_playlists: "true" // Changed from boolean to string
     });
     
     if (testResult && !testResult.error && testResult.result === 'success') {

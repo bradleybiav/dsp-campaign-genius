@@ -1,3 +1,4 @@
+
 import { PlaylistResult } from '@/components/ResultsTable';
 import { NormalizedInput } from '@/utils/apiUtils';
 import { callSongstatsApi, getISRCFromSpotifyTrack } from './apiClient';
@@ -33,7 +34,7 @@ export const getPlaylistPlacements = async (
       // Get track stats with playlists using ISRC
       const trackData = await callSongstatsApi('tracks/stats', { 
         isrc: isrc,
-        with_playlists: true
+        with_playlists: "true" // Changed from boolean to string
       });
       
       if (!trackData || trackData.error) {

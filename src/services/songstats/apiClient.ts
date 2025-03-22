@@ -131,7 +131,7 @@ function delay(ms: number): Promise<void> {
 export const getTrackByISRC = async (isrc: string) => {
   try {
     console.log(`Getting track details for ISRC: ${isrc}`);
-    return await callSongstatsApi('tracks/stats', { isrc, with_playlists: true });
+    return await callSongstatsApi('tracks/stats', { isrc, with_playlists: "true" }); // Changed from boolean to string
   } catch (error) {
     console.error('Error getting track by ISRC:', error);
     return null;
