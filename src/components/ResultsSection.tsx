@@ -2,14 +2,14 @@
 import React from 'react';
 import FilterSection from '@/components/FilterSection';
 import ResultsTable from '@/components/ResultsTable';
-import type { PlaylistResult } from '@/components/results-table/types';
+import type { PlaylistResult, RadioResult, DjResult, PressResult } from '@/components/results-table/types';
 
 interface ResultsSectionProps {
   results: {
     dsp: PlaylistResult[];
-    radio: PlaylistResult[];
-    dj: PlaylistResult[];
-    press: PlaylistResult[];
+    radio: RadioResult[];
+    dj: DjResult[];
+    press: PressResult[];
   };
   loading: boolean;
   filterRecent: boolean;

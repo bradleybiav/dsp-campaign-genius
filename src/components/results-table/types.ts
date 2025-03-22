@@ -1,41 +1,46 @@
+
 export interface PlaylistResult {
+  id: string; // Add id property
   playlistName: string;
   curatorName: string;
   followerCount: number;
   lastUpdated: string;
   playlistUrl: string;
-  matchedInputs: string[];
+  matchedInputs: number[]; // Ensure this is number[] not string[]
   vertical?: string;
 }
 
 export interface RadioResult {
+  id: string;
   station: string;
   show: string;
   dj: string;
   country: string;
   lastSpin: string;
   airplayLink: string;
-  matchedInputs: string[];
+  matchedInputs: number[];
   vertical?: string;
 }
 
 export interface DjResult {
+  id: string;
   dj: string;
   event: string;
   location: string;
   date: string;
   tracklistUrl: string;
-  matchedInputs: string[];
+  matchedInputs: number[];
   vertical?: string;
 }
 
 export interface PressResult {
+  id: string;
   outlet: string;
   writer: string;
   articleTitle: string;
   date: string;
   link: string;
-  matchedInputs: string[];
+  matchedInputs: number[];
   vertical?: string;
 }
 
@@ -53,7 +58,7 @@ export interface ResultsTableProps {
 }
 
 export interface ResultsTableContentProps {
-  results: PlaylistResult[];
+  results: Array<PlaylistResult | RadioResult | DjResult | PressResult>;
   loading?: boolean;
 }
 
