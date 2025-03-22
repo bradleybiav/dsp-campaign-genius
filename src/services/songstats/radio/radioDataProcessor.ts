@@ -26,9 +26,9 @@ export const processRadioData = (
   
   // Log the stats we found
   const statsData = {
-    radio_plays_total: radioStats.data.radio_plays_total,
-    radio_stations_total: radioStats.data.radio_stations_total,
-    sxm_plays_total: radioStats.data.sxm_plays_total
+    radio_plays_total: radioStats.data.radio_plays_total || 0,
+    radio_stations_total: radioStats.data.radio_stations_total || 0,
+    sxm_plays_total: radioStats.data.sxm_plays_total || 0
   };
   console.log(`Radio stats data:`, JSON.stringify(statsData));
   
@@ -39,9 +39,34 @@ export const processRadioData = (
     // Process actual play data from the API
     console.log(`Found ${radioPlays.length} radio plays`);
     
+    // Group plays by station to consolidate multiple plays at the same station
+    const stationPlays = new Map<string, any[]>();
+    
     for (const play of radioPlays) {
+      const stationKey = play.station_id || play.station || `station-${Math.random().toString(36).substring(2, 10)}`;
+      
+      if (!stationPlays.has(stationKey)) {
+        stationPlays.set(stationKey, []);
+      }
+      
+      stationPlays.get(stationKey)?.push(play);
+    }
+    
+    // Process each station
+    for (const [stationKey, plays] of stationPlays.entries()) {
+      // Use the first play as the base for station data
+      const stationData = plays[0];
+      
+      // Create a consolidated play object with the total count
+      const consolidatedPlay = {
+        ...stationData,
+        plays_count: plays.length,
+        station_id: stationKey,
+        station: stationData.station || 'Unknown Station',
+      };
+      
       const result = addOrUpdateRadioStation(
-        play, 
+        consolidatedPlay, 
         inputIndex, 
         processedStations
       );

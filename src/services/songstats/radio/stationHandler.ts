@@ -1,3 +1,4 @@
+
 import { RadioResult } from '@/components/results-table/types';
 
 /**
@@ -19,9 +20,9 @@ export const addOrUpdateRadioStation = (
       existingStation.matchedInputs.push(inputIndex);
     }
     
-    // Update the play count if it exists
+    // Update the play count
     if (existingStation.playsCount !== undefined) {
-      existingStation.playsCount += 1;
+      existingStation.playsCount += play.plays_count || 1;
     }
     
     if (play.date && (!existingStation.lastSpin || play.date > existingStation.lastSpin)) {
@@ -37,7 +38,7 @@ export const addOrUpdateRadioStation = (
       dj: play.dj || undefined,
       show: play.show || undefined,
       country: play.country || 'Unknown',
-      playsCount: 1,
+      playsCount: play.plays_count || 1,
       lastSpin: play.date || new Date().toISOString(),
       airplayLink: play.link || undefined,
       matchedInputs: [inputIndex],
