@@ -1,9 +1,8 @@
-
 import { toast } from 'sonner';
 import { NormalizedInput } from '@/utils/apiUtils';
 import { getPlaylistPlacements } from '@/services/songstats';
 import { getRadioPlays } from '@/services/songstats';
-import { getDjPlacements } from '@/services/tracklistsService';
+import { getDjPlacements } from '@/services/tracklists';
 import { getPressResults } from '@/services/pressService';
 import type { ResearchResults } from './types';
 import { generateMockResearchResults } from './mockDataHandler';
