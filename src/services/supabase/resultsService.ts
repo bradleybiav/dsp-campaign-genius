@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { 
   PlaylistResult, 
@@ -40,12 +39,8 @@ export const saveResults = async (
             .then(({ error }) => {
               if (error) console.error('Error saving DSP results:', error);
               resolve();
-            })
-            .catch = (error: any) => {
-              console.error('Error saving DSP results:', error);
-              resolve();
-              return this;
-            };
+            });
+          // We don't use .catch() here as the PromiseLike returned by Supabase doesn't have it
         })
       );
     }
