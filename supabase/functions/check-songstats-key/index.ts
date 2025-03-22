@@ -45,9 +45,19 @@ serve(async (req) => {
           const responseText = await response.text();
           console.log(`API test response: ${responseText.substring(0, 200)}${responseText.length > 200 ? '...' : ''}`);
           
+          // Try to parse as JSON to ensure it's valid
+          let jsonResponse;
+          try {
+            jsonResponse = JSON.parse(responseText);
+            console.log("Successfully parsed response as JSON");
+          } catch (parseError) {
+            console.error("Response is not valid JSON:", parseError);
+            jsonResponse = { text: responseText.substring(0, 100) };
+          }
+          
           validationResult = {
             status: response.status,
-            response: responseText.substring(0, 200)
+            response: jsonResponse || responseText.substring(0, 200)
           };
         } catch (e) {
           console.error("Error reading test response:", e);

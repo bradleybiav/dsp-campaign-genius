@@ -188,7 +188,22 @@ export async function checkAPIConfiguration(): Promise<boolean> {
       return false;
     }
     
-    const apiKeyStatus = await apiKeyCheck.json();
+    // Ensure we're actually getting JSON back
+    const responseText = await apiKeyCheck.text();
+    let apiKeyStatus;
+    
+    try {
+      apiKeyStatus = JSON.parse(responseText);
+    } catch (e) {
+      console.error('Failed to parse API key check response as JSON:', e);
+      console.error('Raw response:', responseText.substring(0, 200));
+      
+      toast.error('Invalid response from API key check endpoint', {
+        description: 'The check-songstats-key Edge Function is not returning valid JSON'
+      });
+      return false;
+    }
+    
     console.log('API key configuration status:', apiKeyStatus);
     
     if (!apiKeyStatus.configured) {

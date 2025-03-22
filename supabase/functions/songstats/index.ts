@@ -111,6 +111,14 @@ serve(async (req) => {
       });
       console.log(`Direct API test response status: ${testResponse.status}`);
       
+      let testResponseText = "";
+      try {
+        testResponseText = await testResponse.text();
+        console.log(`Direct API test response body (first 200 chars): ${testResponseText.substring(0, 200)}`);
+      } catch (e) {
+        console.error("Error reading test response:", e);
+      }
+      
       // Build the URL according to the API docs
       let apiUrl = `${SONGSTATS_API_URL}/${path}`;
       
@@ -126,6 +134,7 @@ serve(async (req) => {
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
+          "Accept": "application/json"
         },
       });
 
@@ -155,12 +164,27 @@ serve(async (req) => {
         );
       }
 
-      const data = await response.json();
+      let responseData;
+      try {
+        // First try to get the response as JSON
+        const responseText = await response.text();
+        try {
+          responseData = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error("Failed to parse response as JSON:", parseError);
+          console.log("Response text:", responseText.substring(0, 200));
+          responseData = { text: responseText.substring(0, 300), _parseFailed: true };
+        }
+      } catch (textError) {
+        console.error("Error reading response text:", textError);
+        responseData = { error: "Failed to read response body" };
+      }
+
       console.log(`Songstats API response for ${path} received successfully`);
 
       // Return response data
       return new Response(
-        JSON.stringify(data),
+        JSON.stringify(responseData),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     } catch (apiError) {

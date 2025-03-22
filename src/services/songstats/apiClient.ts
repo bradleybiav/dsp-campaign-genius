@@ -24,6 +24,7 @@ export const callSongstatsApi = async (
     const duration = Date.now() - startTime;
     
     console.log(`Songstats API call took ${duration}ms`);
+    console.log('Songstats API response data:', data);
 
     if (error) {
       console.error('Error calling Songstats API:', error);
