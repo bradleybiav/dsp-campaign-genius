@@ -149,7 +149,7 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ onSubmit }) => {
                       You can leave some inputs empty.
                     </p>
                   </PopoverContent>
-                </PopoverContent>
+                </Popover>
               </div>
               <Badge variant="outline" className="text-xs">
                 {referenceInputs.filter(input => input.trim() !== '').length} / 10
