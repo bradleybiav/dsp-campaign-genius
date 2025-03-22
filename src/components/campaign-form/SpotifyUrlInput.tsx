@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Check, X, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,14 @@ import {
   PopoverTrigger
 } from '@/components/ui/popover';
 
-// Example Spotify URLs for testing
-const exampleSpotifyUrls = [
+interface SpotifyUrlExample {
+  type: string;
+  name: string;
+  url: string;
+}
+
+// Example Spotify URLs for testing - moved to a separate constant for reusability
+export const EXAMPLE_SPOTIFY_URLS: SpotifyUrlExample[] = [
   { type: 'Track', name: 'Bad Guy - Billie Eilish', url: 'https://open.spotify.com/track/2Fxmhks0bxGSBdJ92vM42m' },
   { type: 'Track', name: 'Blinding Lights - The Weeknd', url: 'https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b' },
   { type: 'Artist', name: 'Dua Lipa', url: 'https://open.spotify.com/artist/6M2wZ9GZgrQXHCFfjv46we' },
@@ -24,13 +30,15 @@ interface SpotifyUrlInputProps {
   onChange: (value: string) => void;
   placeholder?: string;
   isValid: boolean;
+  examples?: SpotifyUrlExample[];
 }
 
 const SpotifyUrlInput: React.FC<SpotifyUrlInputProps> = ({
   value,
   onChange,
   placeholder = 'https://open.spotify.com/track/... or artist/...',
-  isValid
+  isValid,
+  examples = EXAMPLE_SPOTIFY_URLS
 }) => {
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -39,6 +47,20 @@ const SpotifyUrlInput: React.FC<SpotifyUrlInputProps> = ({
     onChange(url);
     setOpen(false);
     inputRef.current?.focus();
+  };
+
+  const handleClear = () => {
+    onChange('');
+    inputRef.current?.focus();
+  };
+
+  // Determine status classes based on validation state
+  const getInputClasses = () => {
+    if (!value) return '';
+    
+    return !isValid
+      ? 'border-red-400/50 focus-visible:ring-red-400/20'
+      : 'border-green-400/50 focus-visible:ring-green-400/20';
   };
 
   return (
@@ -60,7 +82,7 @@ const SpotifyUrlInput: React.FC<SpotifyUrlInputProps> = ({
               Example Spotify URLs for testing
             </div>
             <div className="max-h-72 overflow-auto">
-              {exampleSpotifyUrls.map((example, index) => (
+              {examples.map((example, index) => (
                 <button
                   key={index}
                   className="w-full flex flex-col items-start px-3 py-2 text-sm hover:bg-accent transition-colors text-left"
@@ -83,13 +105,7 @@ const SpotifyUrlInput: React.FC<SpotifyUrlInputProps> = ({
           placeholder={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={`pl-9 pr-9 transition-all-200 spotify-url-input ${
-            value && !isValid
-              ? 'border-red-400/50 focus-visible:ring-red-400/20'
-              : value && isValid
-              ? 'border-green-400/50 focus-visible:ring-green-400/20'
-              : ''
-          }`}
+          className={`pl-9 pr-9 transition-all-200 spotify-url-input ${getInputClasses()}`}
           pattern="^https:\/\/open\.spotify\.com\/(track|artist|album)\/[a-zA-Z0-9]{22}(\?si=[a-zA-Z0-9]{16})?$"
           ref={inputRef}
         />
@@ -101,15 +117,20 @@ const SpotifyUrlInput: React.FC<SpotifyUrlInputProps> = ({
               variant="ghost"
               size="icon"
               className="h-7 w-7 rounded-full opacity-70 hover:opacity-100"
-              onClick={() => onChange('')}
+              onClick={handleClear}
             >
               <X className="h-3.5 w-3.5" />
             </Button>
           )}
           
           <div className="flex items-center">
-            <Check className="h-4 w-4 text-green-500 opacity-0 spotify-url-status-icon valid transition-opacity" />
-            <X className="h-4 w-4 text-red-500 opacity-0 spotify-url-status-icon invalid transition-opacity" />
+            {value && (
+              isValid ? (
+                <Check className="h-4 w-4 text-green-500 transition-opacity" />
+              ) : (
+                <X className="h-4 w-4 text-red-500 transition-opacity" />
+              )
+            )}
           </div>
         </div>
       </div>

@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-// Maximum retries for API calls
+// API call configuration
 const MAX_CLIENT_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
 
@@ -15,7 +15,7 @@ export const callSongstatsApi = async (
   retries = 0
 ) => {
   try {
-    console.log(`Calling Songstats API path: ${path}, params:`, params);
+    console.log(`Calling Songstats API: ${path}`);
     
     const startTime = Date.now();
     const { data, error } = await supabase.functions.invoke('songstats', {
@@ -23,122 +23,137 @@ export const callSongstatsApi = async (
     });
     const duration = Date.now() - startTime;
     
-    console.log(`Songstats API call took ${duration}ms`);
+    console.log(`API call completed in ${duration}ms`);
     
+    // Handle Supabase invocation errors
     if (error) {
-      console.error('Error calling Songstats API:', error);
-      console.error('Error details:', error.message, error.name, error.cause);
+      console.error('Supabase function error:', error);
       
-      // Handle rate limiting or temporary server errors
-      if ((error.message?.includes('429') || error.message?.includes('50')) && retries < MAX_CLIENT_RETRIES) {
+      // Retry logic for temporary errors
+      if (shouldRetry(error.message) && retries < MAX_CLIENT_RETRIES) {
         console.log(`Retrying API call (${retries + 1}/${MAX_CLIENT_RETRIES})`);
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (retries + 1)));
+        await delay(RETRY_DELAY_MS * (retries + 1));
         return callSongstatsApi(path, params, retries + 1);
       }
       
-      // If API returns a 404 Not Found or similar error, we consider it a normal response for non-existing resources
-      // This helps prevent cascading errors when resources don't exist
+      // Handle 404s gracefully
       if (error.message?.includes('404')) {
-        console.log(`Resource not found at ${path}, returning empty result`);
+        console.log(`Resource not found at ${path}`);
         return null;
       }
       
-      // Show error toast with details if available
-      toast.error(`Songstats API Error: ${error.message || "Unknown error"}`, {
+      toast.error(`API Error: ${getErrorMessage(error)}`, {
         description: `Path: ${path}`
       });
       
-      // Log additional troubleshooting information
-      console.error('Troubleshooting info:', {
-        path,
-        params,
-        errorMessage: error.message,
-        errorName: error.name,
-        errorCause: error.cause,
-        dataReceived: data
-      });
-      
       return null;
     }
 
-    // Handle data being null or undefined
+    // Handle missing data
     if (!data) {
-      console.warn(`No data returned from Songstats API for ${path}`);
+      console.warn(`No data returned for ${path}`);
       return null;
     }
 
-    // Handle API-level errors that might be in the response
-    if (data?.error) {
-      console.error('Songstats API returned an error:', data);
+    // Handle API-level errors in the response
+    if (data.error) {
+      console.error('API error in response:', data.error);
       
-      // Handle rate limiting or temporary server errors in the response
-      if ((data.status === 429 || data.status >= 500) && retries < MAX_CLIENT_RETRIES) {
-        console.log(`Retrying API call due to status ${data.status} (${retries + 1}/${MAX_CLIENT_RETRIES})`);
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (retries + 1)));
+      // Retry for rate limiting or server errors
+      if (shouldRetryStatus(data.status) && retries < MAX_CLIENT_RETRIES) {
+        console.log(`Retrying due to status ${data.status} (${retries + 1}/${MAX_CLIENT_RETRIES})`);
+        await delay(RETRY_DELAY_MS * (retries + 1));
         return callSongstatsApi(path, params, retries + 1);
       }
       
-      // If API returns a 404 Not Found, we consider it a normal response for non-existing resources
+      // Handle 404s gracefully
       if (data.status === 404) {
-        console.log(`Resource not found at ${path}, returning empty result`);
+        console.log(`Resource not found at ${path}`);
         return null;
       }
       
-      // Show error toast with details
-      toast.error(`Songstats API Error: ${data.error || "Unknown error"}`, {
+      toast.error(`API Error: ${data.error}`, {
         description: data.details || `Path: ${path}`
       });
       
       return null;
     }
 
-    console.log(`Songstats API response for ${path}:`, data);
     return data;
   } catch (error) {
-    console.error('Error in callSongstatsApi:', error);
+    console.error('Exception in API call:', error);
     
-    // Handle network errors
+    // Retry on network errors
     if (retries < MAX_CLIENT_RETRIES) {
-      console.log(`Retrying API call after network error (${retries + 1}/${MAX_CLIENT_RETRIES})`);
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (retries + 1)));
+      console.log(`Retrying after error (${retries + 1}/${MAX_CLIENT_RETRIES})`);
+      await delay(RETRY_DELAY_MS * (retries + 1));
       return callSongstatsApi(path, params, retries + 1);
     }
     
-    toast.error(`Error connecting to Songstats: ${error.message || "Network error"}`);
+    toast.error(`Connection error: ${getErrorMessage(error)}`);
     return null;
   }
 };
 
 /**
+ * Determine if we should retry based on error message
+ */
+function shouldRetry(errorMessage?: string): boolean {
+  if (!errorMessage) return false;
+  return errorMessage.includes('429') || // Rate limiting
+         errorMessage.includes('50') ||  // Server errors
+         errorMessage.includes('timeout') ||
+         errorMessage.includes('network');
+}
+
+/**
+ * Determine if we should retry based on status code
+ */
+function shouldRetryStatus(status?: number): boolean {
+  if (!status) return false;
+  return status === 429 || status >= 500;
+}
+
+/**
+ * Extract readable message from error
+ */
+function getErrorMessage(error: any): string {
+  return error.message || error.toString() || "Unknown error";
+}
+
+/**
+ * Promise-based delay
+ */
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
  * Get Songstats ID from Spotify URL
- * Updated to gracefully handle API errors
  */
 export const getSongstatsId = async (spotifyId: string, type: 'track' | 'artist'): Promise<string | null> => {
   try {
-    console.log(`Getting Songstats ID for Spotify ${type} ID: ${spotifyId}`);
+    console.log(`Getting Songstats ID for Spotify ${type}: ${spotifyId}`);
     
-    // Call the Edge Function to get Songstats ID
+    // Call the Edge Function
     const data = await callSongstatsApi('mappings/spotify', {
       id: spotifyId,
       type: type
     });
     
     if (!data) {
-      console.log(`No mapping data returned for Spotify ${type} ID ${spotifyId}`);
+      console.log(`No mapping found for ${type} ${spotifyId}`);
       return null;
     }
     
-    console.log(`Songstats ID mapping response:`, data);
-    
-    // Extract ID based on the response structure
     const songstatsId = data.songstats_id;
     
     if (!songstatsId) {
-      console.log(`Songstats ID not found for Spotify ${type} ID ${spotifyId}`);
+      console.log(`Songstats ID not found in response for ${type} ${spotifyId}`);
       return null;
     }
     
-    console.log(`Songstats ID for Spotify ${type} ID ${spotifyId}:`, songstatsId);
+    console.log(`Songstats ID found: ${songstatsId}`);
     return songstatsId;
   } catch (error) {
     console.error('Error getting Songstats ID:', error);

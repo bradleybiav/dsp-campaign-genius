@@ -12,30 +12,24 @@ serve(async (req) => {
     // Get the API key from Supabase secrets
     const apiKey = Deno.env.get("SONGSTATS_API_KEY")
     
-    console.log("Checking Songstats API key configuration:", {
-      apiKeyPresent: !!apiKey,
-      apiKeyLength: apiKey ? apiKey.length : 0
+    // Log key information without exposing the key itself
+    console.log("Checking Songstats API key:", {
+      present: !!apiKey,
+      length: apiKey ? apiKey.length : 0
     });
     
-    // Check if the API key format appears valid (basic check)
-    const apiKeyValid = apiKey && apiKey.length >= 10;
+    // Basic validation - keys should be reasonably long
+    const isValidFormat = apiKey && apiKey.length >= 10;
     
-    // Make sure we set proper headers for CORS and content type
-    const headers = { 
-      ...corsHeaders, 
-      "Content-Type": "application/json" 
-    };
-
     return new Response(
       JSON.stringify({ 
         configured: !!apiKey,
-        valid: apiKeyValid,
+        valid: isValidFormat,
         message: apiKey 
-          ? `API key is configured (${apiKeyValid ? "appears valid" : "invalid format"})` 
-          : "API key is not configured or is empty",
-        apiKeyLength: apiKey ? apiKey.length : 0
+          ? `API key is ${isValidFormat ? "configured properly" : "configured but may be invalid"}`
+          : "API key is not configured",
       }),
-      { headers }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     )
   } catch (error) {
     console.error("Error checking Songstats API key:", error);
@@ -46,13 +40,7 @@ serve(async (req) => {
         error: "Error checking API key configuration",
         details: error.message
       }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          "Content-Type": "application/json" 
-        }, 
-        status: 200  // Return 200 even for errors, with error details in the body
-      }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     )
   }
 })

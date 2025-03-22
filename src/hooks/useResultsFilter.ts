@@ -1,102 +1,84 @@
 
-import { useState } from 'react';
-import type { PlaylistResult, RadioResult, DjResult, PressResult } from '@/components/results-table/types';
+import { useState, useMemo } from 'react';
+import { isAfter, parseISO, subDays } from 'date-fns';
+import { PlaylistResult, RadioResult, DjResult, PressResult } from '@/components/results-table/types';
 
-export interface FilteredResults {
-  dspResults: PlaylistResult[];
-  radioResults: RadioResult[];
-  djResults: DjResult[];
-  pressResults: PressResult[];
-}
+type AnyResult = PlaylistResult | RadioResult | DjResult | PressResult;
 
-export const useResultsFilter = (initialVerticals: string[] = []) => {
+export function useResultsFilter(defaultVerticals: string[] = []) {
   const [filterRecent, setFilterRecent] = useState(false);
   const [followerThreshold, setFollowerThreshold] = useState(0);
-  const [selectedFilterVerticals, setSelectedFilterVerticals] = useState<string[]>(initialVerticals);
+  const [selectedFilterVerticals, setSelectedFilterVerticals] = useState<string[]>(defaultVerticals);
 
-  // Apply filters to all result types
   const applyFilters = (
     dspResults: PlaylistResult[],
     radioResults: RadioResult[],
     djResults: DjResult[],
     pressResults: PressResult[]
-  ): FilteredResults => {
-    // Filter DSP results
-    const filteredDspResults = dspResults.filter(result => {
-      // Only include if vertical is selected
-      if (!selectedFilterVerticals.includes('dsp')) return false;
+  ) => {
+    // Helper function to filter by date
+    const isRecentEnough = (result: AnyResult): boolean => {
+      if (!filterRecent) return true;
       
-      // Filter by follower threshold
-      if (result.followerCount < followerThreshold) return false;
+      const thirtyDaysAgo = subDays(new Date(), 30);
+      let dateToCheck: Date;
       
-      // Filter by recency if enabled
-      if (filterRecent) {
-        const lastUpdated = new Date(result.lastUpdated);
-        const threeMonthsAgo = new Date();
-        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-        
-        if (lastUpdated < threeMonthsAgo) return false;
+      if ('lastUpdated' in result) {
+        dateToCheck = parseISO(result.lastUpdated);
+      } else if ('lastSpin' in result) {
+        dateToCheck = parseISO(result.lastSpin);
+      } else if ('date' in result) {
+        dateToCheck = parseISO(result.date);
+      } else {
+        return false;
       }
       
-      return true;
-    });
+      return isAfter(dateToCheck, thirtyDaysAgo);
+    };
 
-    // Filter Radio results
-    const filteredRadioResults = radioResults.filter(result => {
-      // Only include if vertical is selected
-      if (!selectedFilterVerticals.includes('radio')) return false;
-      
-      // Filter by recency if enabled
-      if (filterRecent) {
-        const lastSpin = new Date(result.lastSpin);
-        const threeMonthsAgo = new Date();
-        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-        
-        if (lastSpin < threeMonthsAgo) return false;
-      }
-      
-      return true;
-    });
+    // Helper function for follower threshold (only applies to playlists)
+    const hasEnoughFollowers = (result: AnyResult): boolean => {
+      if (followerThreshold <= 0) return true;
+      return !('followerCount' in result) || result.followerCount >= followerThreshold;
+    };
 
-    // Filter DJ results
-    const filteredDjResults = djResults.filter(result => {
-      // Only include if vertical is selected
-      if (!selectedFilterVerticals.includes('dj')) return false;
-      
-      // Filter by recency if enabled
-      if (filterRecent) {
-        const date = new Date(result.date);
-        const threeMonthsAgo = new Date();
-        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-        
-        if (date < threeMonthsAgo) return false;
-      }
-      
-      return true;
-    });
+    // Helper function for vertical filtering
+    const matchesSelectedVertical = (result: AnyResult): boolean => {
+      if (selectedFilterVerticals.length === 0) return true;
+      return selectedFilterVerticals.includes(result.vertical || '');
+    };
 
-    // Filter Press results
-    const filteredPressResults = pressResults.filter(result => {
-      // Only include if vertical is selected
-      if (!selectedFilterVerticals.includes('press')) return false;
-      
-      // Filter by recency if enabled
-      if (filterRecent) {
-        const date = new Date(result.date);
-        const threeMonthsAgo = new Date();
-        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-        
-        if (date < threeMonthsAgo) return false;
-      }
-      
-      return true;
-    });
+    // Apply all filters to each result set
+    const filteredDsp = dspResults.filter(result => 
+      isRecentEnough(result) && hasEnoughFollowers(result) && matchesSelectedVertical(result)
+    );
+    
+    const filteredRadio = radioResults.filter(result => 
+      isRecentEnough(result) && hasEnoughFollowers(result) && matchesSelectedVertical(result)
+    );
+    
+    const filteredDj = djResults.filter(result => 
+      isRecentEnough(result) && hasEnoughFollowers(result) && matchesSelectedVertical(result)
+    );
+    
+    const filteredPress = pressResults.filter(result => 
+      isRecentEnough(result) && hasEnoughFollowers(result) && matchesSelectedVertical(result)
+    );
+
+    // Combine all results for the "All" tab
+    const filteredAllResults = [
+      ...filteredDsp,
+      ...filteredRadio,
+      ...filteredDj,
+      ...filteredPress
+    ];
 
     return {
-      dspResults: filteredDspResults,
-      radioResults: filteredRadioResults,
-      djResults: filteredDjResults,
-      pressResults: filteredPressResults
+      dspResults: filteredDsp,
+      radioResults: filteredRadio,
+      djResults: filteredDj,
+      pressResults: filteredPress,
+      allResults: filteredAllResults
     };
   };
 
@@ -109,4 +91,6 @@ export const useResultsFilter = (initialVerticals: string[] = []) => {
     setSelectedFilterVerticals,
     applyFilters
   };
-};
+}
+
+export default useResultsFilter;

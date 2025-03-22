@@ -16,6 +16,7 @@ const Index = () => {
     handleFormSubmit
   } = useResearchForm();
 
+  // Initialize the filter with DSP vertical selected by default
   const {
     filterRecent,
     setFilterRecent,
@@ -26,7 +27,7 @@ const Index = () => {
     applyFilters
   } = useResultsFilter(['dsp']);
   
-  // Apply filters to all result types
+  // Process results through filters
   const filteredResults = showResults 
     ? applyFilters(
         results.dspResults, 
@@ -38,7 +39,8 @@ const Index = () => {
         dspResults: [],
         radioResults: [],
         djResults: [],
-        pressResults: []
+        pressResults: [],
+        allResults: []
       };
 
   return (
@@ -50,7 +52,9 @@ const Index = () => {
           <section className="mb-16">
             <CampaignForm 
               onSubmit={(formData) => {
+                // Update filter verticals to match form selection
                 setSelectedFilterVerticals(formData.selectedVerticals);
+                // Submit the form data for processing
                 handleFormSubmit(formData);
               }} 
             />

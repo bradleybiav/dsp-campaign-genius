@@ -15,13 +15,17 @@ interface ReferenceInputsSectionProps {
   referenceInputs: string[];
   onReferenceInputChange: (index: number, value: string) => void;
   validateSpotifyUrl: (url: string) => boolean;
+  maxInputs?: number;
 }
 
 const ReferenceInputsSection: React.FC<ReferenceInputsSectionProps> = ({
   referenceInputs,
   onReferenceInputChange,
-  validateSpotifyUrl
+  validateSpotifyUrl,
+  maxInputs = 10
 }) => {
+  const filledInputCount = referenceInputs.filter(input => input.trim() !== '').length;
+  
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -42,17 +46,17 @@ const ReferenceInputsSection: React.FC<ReferenceInputsSectionProps> = ({
           </Popover>
         </div>
         <Badge variant="outline" className="text-xs">
-          {referenceInputs.filter(input => input.trim() !== '').length} / 10
+          {filledInputCount} / {maxInputs}
         </Badge>
       </div>
 
       <div className="grid gap-4">
-        {Array.from({ length: 10 }).map((_, index) => (
+        {Array.from({ length: maxInputs }).map((_, index) => (
           <SpotifyUrlInput
             key={index}
-            value={referenceInputs[index]}
+            value={referenceInputs[index] || ''}
             onChange={(value) => onReferenceInputChange(index, value)}
-            isValid={validateSpotifyUrl(referenceInputs[index])}
+            isValid={validateSpotifyUrl(referenceInputs[index] || '')}
           />
         ))}
       </div>
