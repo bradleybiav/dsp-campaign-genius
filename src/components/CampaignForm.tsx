@@ -65,7 +65,7 @@ const CampaignForm: React.FC<CampaignFormProps> = ({ onSubmit }) => {
 
     onSubmit({
       campaignName,
-      referenceInputs,
+      referenceInputs: referenceInputs.filter(url => url.trim() !== ''),
       selectedVerticals,
     });
   };
