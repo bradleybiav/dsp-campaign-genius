@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders } from "../_shared/cors.ts"
 
-// Updated base URL according to docs
+// Updated base URL according to docs: https://docs.songstats.com/
 const SONGSTATS_API_URL = 'https://api.songstats.com/api/v1';
 
 const MAX_RETRIES = 3;
