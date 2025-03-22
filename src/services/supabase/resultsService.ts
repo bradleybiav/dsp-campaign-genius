@@ -19,7 +19,7 @@ export const saveResults = async (
   }
 ): Promise<boolean> => {
   try {
-    const savePromises: Promise<any>[] = [];
+    const savePromises: Promise<void>[] = [];
     
     // Save DSP results
     if (results.dspResults.length > 0) {
@@ -35,11 +35,17 @@ export const saveResults = async (
       }));
 
       savePromises.push(
-        supabase.from('dsp_results').insert(dspResultsData)
-          .then(({ error }) => {
-            if (error) console.error('Error saving DSP results:', error);
-            return Promise.resolve();
-          })
+        new Promise<void>((resolve) => {
+          supabase.from('dsp_results').insert(dspResultsData)
+            .then(({ error }) => {
+              if (error) console.error('Error saving DSP results:', error);
+              resolve();
+            })
+            .catch(error => {
+              console.error('Error saving DSP results:', error);
+              resolve();
+            });
+        })
       );
     }
 
@@ -58,11 +64,17 @@ export const saveResults = async (
       }));
 
       savePromises.push(
-        supabase.from('radio_results').insert(radioResultsData)
-          .then(({ error }) => {
-            if (error) console.error('Error saving Radio results:', error);
-            return Promise.resolve();
-          })
+        new Promise<void>((resolve) => {
+          supabase.from('radio_results').insert(radioResultsData)
+            .then(({ error }) => {
+              if (error) console.error('Error saving Radio results:', error);
+              resolve();
+            })
+            .catch(error => {
+              console.error('Error saving Radio results:', error);
+              resolve();
+            });
+        })
       );
     }
 
@@ -80,11 +92,17 @@ export const saveResults = async (
       }));
 
       savePromises.push(
-        supabase.from('dj_results').insert(djResultsData)
-          .then(({ error }) => {
-            if (error) console.error('Error saving DJ results:', error);
-            return Promise.resolve();
-          })
+        new Promise<void>((resolve) => {
+          supabase.from('dj_results').insert(djResultsData)
+            .then(({ error }) => {
+              if (error) console.error('Error saving DJ results:', error);
+              resolve();
+            })
+            .catch(error => {
+              console.error('Error saving DJ results:', error);
+              resolve();
+            });
+        })
       );
     }
 
@@ -102,11 +120,17 @@ export const saveResults = async (
       }));
 
       savePromises.push(
-        supabase.from('press_results').insert(pressResultsData)
-          .then(({ error }) => {
-            if (error) console.error('Error saving Press results:', error);
-            return Promise.resolve();
-          })
+        new Promise<void>((resolve) => {
+          supabase.from('press_results').insert(pressResultsData)
+            .then(({ error }) => {
+              if (error) console.error('Error saving Press results:', error);
+              resolve();
+            })
+            .catch(error => {
+              console.error('Error saving Press results:', error);
+              resolve();
+            });
+        })
       );
     }
 
