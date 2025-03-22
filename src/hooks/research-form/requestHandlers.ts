@@ -1,3 +1,4 @@
+
 import { toast } from 'sonner';
 import { NormalizedInput } from '@/utils/apiUtils';
 import { getPlaylistPlacements } from '@/services/songstats';
@@ -105,6 +106,7 @@ export async function executeResearch(
     toast.success('Research completed successfully', {
       description: `Found data in ${successfulVerticals.join(', ')} verticals`
     });
+    return researchResults;
   }
   
   // If no results, fallback to mock data
@@ -121,10 +123,9 @@ export async function executeResearch(
     
     // Use mock results
     Object.assign(researchResults, mockResearchResults);
-    return researchResults;
   }
   
-  console.log('Real API results found:', {
+  console.log('Final results:', {
     dsp: researchResults.dspResults.length,
     radio: researchResults.radioResults.length,
     dj: researchResults.djResults.length,

@@ -122,6 +122,9 @@ function generateMockRadioPlays(normalizedInputs: NormalizedInput[]) {
       Date.now() - Math.floor(Math.random() * 60) * 24 * 60 * 60 * 1000
     ).toISOString();
     
+    // For more realistic mock data, add playsCount
+    const playsCount = Math.floor(Math.random() * 30) + 1;
+    
     return {
       id: `mock-radio-${i}`,
       station: station.station,
@@ -130,6 +133,7 @@ function generateMockRadioPlays(normalizedInputs: NormalizedInput[]) {
       country: station.country,
       lastSpin,
       airplayLink: `https://example.com/airplay/mock${i}`,
+      playsCount,
       matchedInputs,
       vertical: 'radio' as const
     };
