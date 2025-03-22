@@ -4,46 +4,27 @@ import { supabase } from '@/integrations/supabase/client';
 import { callSongstatsApi } from '@/services/songstats/apiClient';
 
 /**
- * Test specific Songstats API endpoints to verify connectivity
+ * Test Songstats API connectivity using Enterprise API
  */
 export async function testSongstatsApi() {
   try {
-    console.log('Testing Songstats API connection...');
+    console.log('Testing Songstats Enterprise API connection...');
     
-    // Try these endpoints in order
-    const endpointsToTest = [
-      { path: 'me', description: 'account info' },
-      { path: 'health', description: 'health check' },
-      { path: 'users/current', description: 'current user' },
-      { path: 'tracks/top', params: { limit: 1 }, description: 'top tracks' }
-    ];
+    // Test with a known ISRC from a popular track
+    const testISRC = "USIR20400274"; // Black Eyed Peas - Let's Get It Started
     
-    for (const endpoint of endpointsToTest) {
-      console.log(`Testing ${endpoint.description} endpoint: ${endpoint.path}`);
-      const testResult = await callSongstatsApi(endpoint.path, endpoint.params || {});
-      
-      if (testResult && !testResult.error) {
-        console.log(`✅ API test successful with ${endpoint.description}!`, testResult);
-        return true;
-      }
-      
-      console.log(`${endpoint.description} test failed, trying next endpoint...`);
-    }
-    
-    // If we get this far, try a specific track ID test as last resort
-    console.log('Testing with a specific track ID...');
-    const testTrackId = '3Wrjm47oTz2sjIgck11l5e'; // Billie Eilish - bad guy
-    
-    const trackResult = await callSongstatsApi('tracks/spotify', { 
-      id: testTrackId
+    // Try to get stats for the test ISRC
+    const testResult = await callSongstatsApi('tracks/stats', { 
+      isrc: testISRC, 
+      with_playlists: true 
     });
     
-    if (trackResult && !trackResult.error) {
-      console.log('✅ API test successful with track lookup!', trackResult);
+    if (testResult && !testResult.error && testResult.result === 'success') {
+      console.log(`✅ Enterprise API test successful with ISRC ${testISRC}!`, testResult);
       return true;
     }
     
-    console.error('❌ All API tests failed');
+    console.error('❌ Enterprise API test failed', testResult);
     return false;
   } catch (error) {
     console.error('❌ Songstats API test failed with error:', error);

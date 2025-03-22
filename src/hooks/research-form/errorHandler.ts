@@ -25,6 +25,11 @@ export const handleApiError = (service: string, error: any) => {
     });
   }
   
+  // Enterprise API specific error handling
+  if (error?.result === 'error') {
+    console.error(`${service} Enterprise API error:`, error);
+  }
+  
   return errorMessage;
 };
 
@@ -35,15 +40,17 @@ export const showServiceError = (service: string, error: any) => {
   const errorMsg = handleApiError(service, error);
   
   // Customize the error message based on common API errors
-  if (error?.status === 404) {
+  if (error?.status === 404 || (error?.result === 'error' && error?.message?.includes('not found'))) {
     toast.warning(`${service} resource not found`, { 
       description: 'This endpoint may not be available in your API subscription'
     });
-  } else if (error?.status === 401 || error?.status === 403) {
+  } else if (error?.status === 401 || error?.status === 403 || 
+             (error?.result === 'error' && error?.message?.includes('unauthorized'))) {
     toast.error(`Authentication error with ${service}`, { 
       description: 'Please check your API credentials'
     });
-  } else if (error?.status === 429) {
+  } else if (error?.status === 429 || 
+             (error?.result === 'error' && error?.message?.includes('rate limit'))) {
     toast.warning(`Rate limit exceeded for ${service}`, { 
       description: 'Please try again later'
     });

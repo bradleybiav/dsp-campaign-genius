@@ -126,49 +126,48 @@ function delay(ms: number): Promise<void> {
 }
 
 /**
- * Get Songstats ID from Spotify URL
- * Updated to try different endpoint structures
+ * Get track details using ISRC
  */
-export const getSongstatsId = async (spotifyId: string, type: 'track' | 'artist'): Promise<string | null> => {
+export const getTrackByISRC = async (isrc: string) => {
   try {
-    console.log(`Getting Songstats ID for Spotify ${type}: ${spotifyId}`);
+    console.log(`Getting track details for ISRC: ${isrc}`);
+    return await callSongstatsApi('tracks/stats', { isrc, with_playlists: true });
+  } catch (error) {
+    console.error('Error getting track by ISRC:', error);
+    return null;
+  }
+};
+
+/**
+ * Get Songstats track ID from Spotify ID
+ */
+export const getTrackBySpotifyId = async (spotifyId: string) => {
+  try {
+    console.log(`Getting track details for Spotify ID: ${spotifyId}`);
+    return await callSongstatsApi('tracks/by-platform', { 
+      platform: 'spotify',
+      id: spotifyId
+    });
+  } catch (error) {
+    console.error('Error getting track by Spotify ID:', error);
+    return null;
+  }
+};
+
+/**
+ * Extract ISRC from track ID or URL
+ */
+export const getISRCFromSpotifyTrack = async (spotifyId: string): Promise<string | null> => {
+  try {
+    const trackData = await getTrackBySpotifyId(spotifyId);
     
-    // Try updated endpoint paths
-    const endpointsToTry = [
-      `mappings/spotify?id=${spotifyId}&type=${type}`,
-      `${type}s/spotify?id=${spotifyId}`,
-      `${type}s/${spotifyId}`
-    ];
-    
-    for (const endpoint of endpointsToTry) {
-      console.log(`Trying endpoint: ${endpoint}`);
-      const data = await callSongstatsApi(endpoint);
-      
-      if (!data || data.error) {
-        continue;
-      }
-      
-      // Extract ID based on different possible response formats
-      let songstatsId = null;
-      
-      if (data.songstats_id) {
-        songstatsId = data.songstats_id;
-      } else if (data.id) {
-        songstatsId = data.id;
-      } else if (data.data && data.data.id) {
-        songstatsId = data.data.id;
-      }
-      
-      if (songstatsId) {
-        console.log(`Songstats ID found: ${songstatsId}`);
-        return songstatsId;
-      }
+    if (!trackData || trackData.error) {
+      return null;
     }
     
-    console.log(`Songstats ID not found for ${type} ${spotifyId} after trying multiple endpoints`);
-    return null;
+    return trackData.isrc || null;
   } catch (error) {
-    console.error('Error getting Songstats ID:', error);
+    console.error('Error getting ISRC from Spotify track:', error);
     return null;
   }
 };

@@ -1,6 +1,6 @@
 
 import { NormalizedInput } from '@/utils/apiUtils';
-import { callSongstatsApi, getSongstatsId } from './apiClient';
+import { callSongstatsApi, getISRCFromSpotifyTrack } from './apiClient';
 
 /**
  * Radio results interface matching the expected output
@@ -18,8 +18,7 @@ export interface RadioResult {
 }
 
 /**
- * Get radio play data for tracks
- * Updated to handle different API response formats
+ * Get radio play data for tracks using the Enterprise API
  */
 export const getRadioPlays = async (
   normalizedInputs: NormalizedInput[]
@@ -33,31 +32,40 @@ export const getRadioPlays = async (
       // Skip non-Spotify track inputs for radio research
       if (input.type !== 'spotify_track') continue;
       
-      // Get Songstats ID
-      const songstatsId = await getSongstatsId(input.id, 'track');
-      if (!songstatsId) continue;
+      // For track URLs, first get the ISRC
+      let isrc: string | null = null;
       
-      // Try multiple endpoint patterns
-      // Try v2 pattern first
-      let data = await callSongstatsApi(`v2/tracks/${songstatsId}/radio`);
+      // Try to get ISRC from Spotify ID
+      isrc = await getISRCFromSpotifyTrack(input.id);
       
-      // If that fails, try v1 format
-      if (!data || data.error) {
-        data = await callSongstatsApi(`track/${songstatsId}/radio`);
+      if (!isrc) {
+        console.log(`No ISRC found for Spotify track: ${input.id}, skipping`);
+        continue;
       }
       
-      // Last attempt - try legacy pattern
-      if (!data || data.error) {
-        data = await callSongstatsApi(`tracks/${songstatsId}/radio`);
+      console.log(`Found ISRC: ${isrc} for Spotify track: ${input.id}`);
+      
+      // Get track stats with radio plays using ISRC
+      const trackData = await callSongstatsApi('tracks/stats', { 
+        isrc: isrc,
+        with_radio: true
+      });
+      
+      if (!trackData || trackData.error) {
+        console.error('Error getting track stats:', trackData?.error || 'Unknown error');
+        continue;
       }
       
-      if (!data || !data.radio || data.error) {
-        console.error('Error getting radio plays:', data?.error || 'Unknown error');
+      // Process radio plays from the stats
+      const radioStats = trackData.stats?.find(stat => stat.source === 'radio');
+      
+      if (!radioStats || !radioStats.data || !radioStats.data.plays) {
+        console.log(`No radio play data for ISRC: ${isrc}`);
         continue;
       }
       
       // Process each radio play
-      for (const play of data.radio) {
+      for (const play of radioStats.data.plays) {
         const radioKey = `${play.station}-${play.show || ''}-${play.dj || ''}`;
         
         if (processedRadios.has(radioKey)) {

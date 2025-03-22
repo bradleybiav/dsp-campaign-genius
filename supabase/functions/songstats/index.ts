@@ -2,10 +2,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders } from "../_shared/cors.ts"
 
-// API versions supported by Songstats
-const API_VERSIONS = ['v1', 'v2'];
-// Default base URL (will be modified based on API version detection)
-const DEFAULT_API_URL = 'https://api.songstats.com/api';
+// Default base URL for Songstats Enterprise API
+const ENTERPRISE_API_URL = 'https://api.songstats.com/enterprise/v1';
 
 // Maximum retries for API calls
 const MAX_RETRIES = 3;
@@ -37,13 +35,6 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 0): P
     }
     throw error;
   }
-}
-
-/**
- * Validate API key format
- */
-function isApiKeyValid(apiKey: string | undefined): boolean {
-  return !!apiKey && apiKey.length >= 10;
 }
 
 /**
@@ -85,67 +76,31 @@ async function processApiResponse(response: Response): Promise<object> {
 }
 
 /**
- * Try different API versions and endpoint structures
+ * Call the Songstats Enterprise API
  */
-async function tryMultipleEndpoints(basePath: string, params: any, apiKey: string): Promise<{ result: any, successUrl?: string }> {
+async function callEnterpriseApi(path: string, params: any, apiKey: string): Promise<any> {
+  const queryParams = new URLSearchParams(params);
+  const url = `${ENTERPRISE_API_URL}/${path}?${queryParams.toString()}`;
+  
+  console.log(`Calling Enterprise API: ${url}`);
+  
   const requestOptions = {
+    method: "GET",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "Accept": "application/json"
+      'Accept-Encoding': '',
+      "Accept": 'application/json',
+      'apikey': apiKey,
+      "Content-Type": "application/json"
     }
   };
-
-  const endpointsToTry = [];
   
-  // Try with prefix /api first as it's in the official docs
-  for (const version of API_VERSIONS) {
-    endpointsToTry.push(`https://api.songstats.com/api/${version}/${basePath}`);
+  try {
+    const response = await fetchWithRetry(url, requestOptions, 0);
+    return await processApiResponse(response);
+  } catch (error) {
+    console.error(`Error calling Enterprise API: ${error.message}`);
+    return { error: error.message };
   }
-  
-  // Then try without /api prefix
-  for (const version of API_VERSIONS) {
-    endpointsToTry.push(`https://api.songstats.com/${version}/${basePath}`);
-  }
-  
-  // Finally try direct endpoint without version
-  endpointsToTry.push(`https://api.songstats.com/api/${basePath}`);
-  endpointsToTry.push(`https://api.songstats.com/${basePath}`);
-  
-  console.log(`Will try these endpoints:`, endpointsToTry);
-  
-  for (const apiUrl of endpointsToTry) {
-    try {
-      let fullUrl = apiUrl;
-      
-      if (params && Object.keys(params).length > 0) {
-        const queryParams = new URLSearchParams(params);
-        fullUrl = `${apiUrl}?${queryParams.toString()}`;
-      }
-      
-      console.log(`Trying Songstats API at: ${fullUrl}`);
-      
-      const response = await fetchWithRetry(fullUrl, requestOptions, 0);
-      const responseData = await processApiResponse(response);
-      
-      if (response.ok && !responseData.error) {
-        console.log(`Found working endpoint: ${apiUrl}`);
-        return { result: responseData, successUrl: apiUrl };
-      }
-      
-      console.log(`Endpoint ${apiUrl} returned ${response.status}`);
-    } catch (e) {
-      console.error(`Error with endpoint ${apiUrl}:`, e.message);
-    }
-  }
-  
-  // If we get here, all endpoints failed
-  return { 
-    result: { 
-      error: "All Songstats API endpoints failed", 
-      attemptedEndpoints: endpointsToTry 
-    } 
-  };
 }
 
 serve(async (req) => {
@@ -162,7 +117,7 @@ serve(async (req) => {
     const apiKey = Deno.env.get("SONGSTATS_API_KEY");
     
     // Validate API key
-    if (!isApiKeyValid(apiKey)) {
+    if (!apiKey || apiKey.length < 10) {
       return new Response(
         JSON.stringify({ 
           error: "API key not configured or invalid",
@@ -173,15 +128,8 @@ serve(async (req) => {
     }
 
     try {
-      // Strip any version prefix from the path to allow us to try different versions
-      const cleanedPath = path.replace(/^v[12]\//, '');
-      
-      // Try multiple endpoint formats to find one that works
-      const { result, successUrl } = await tryMultipleEndpoints(cleanedPath, params, apiKey);
-      
-      if (successUrl) {
-        console.log(`Successfully used endpoint: ${successUrl}`);
-      }
+      // Call the Enterprise API with the provided path and params
+      const result = await callEnterpriseApi(path, params, apiKey);
       
       // Return processed data with CORS headers
       return new Response(

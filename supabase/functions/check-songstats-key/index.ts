@@ -18,20 +18,23 @@ serve(async (req) => {
       length: apiKey ? apiKey.length : 0
     });
     
-    // Try making a simple test request to validate the key
+    // Try making a simple test request to validate the key using the enterprise endpoint
     let apiTestResult = null;
     let apiError = null;
     let apiResponseInfo = null;
     
     if (apiKey && apiKey.length >= 10) {
       try {
-        // First try the official endpoint mentioned in documentation
-        const testUrl = 'https://api.songstats.com/api/v1/me';
+        // Use the enterprise endpoint format from the Airtable script
+        const testUrl = 'https://api.songstats.com/enterprise/v1/tracks/stats?isrc=USIR20400274';
         const response = await fetch(testUrl, {
+          method: "GET",
           headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Accept": "application/json"
-          },
+            'Accept-Encoding': '',
+            "Accept": 'application/json',
+            'apikey': apiKey,
+            "Content-Type": "application/json"
+          }
         });
         
         console.log("API test response status:", response.status);
