@@ -1,5 +1,7 @@
+
 import { NormalizedInput } from '@/utils/apiUtils';
 import { callSongstatsApi, getISRCFromSpotifyTrack } from './apiClient';
+import { toast } from 'sonner';
 
 /**
  * Radio results interface matching the expected output
@@ -25,13 +27,16 @@ export const getRadioPlays = async (
   try {
     const results: RadioResult[] = [];
     const processedRadios = new Map<string, RadioResult>();
+    let apiSuccessCalls = 0;
+    let totalApiCalls = 0;
     
     // Process each input
     for (const input of normalizedInputs) {
       // For ISRC inputs, use them directly
       if (input.type === 'isrc') {
         const isrc = input.id;
-        console.log(`Using direct ISRC input: ${isrc}`);
+        console.log(`Using direct ISRC input for radio: ${isrc}`);
+        totalApiCalls++;
         
         // Get track stats with radio plays using ISRC
         const trackData = await callSongstatsApi('tracks/stats', { 
@@ -44,13 +49,25 @@ export const getRadioPlays = async (
           continue;
         }
         
+        apiSuccessCalls++;
+        
         // Process radio plays from the stats
         const radioStats = trackData.stats?.find(stat => stat.source === 'radio');
         
         if (!radioStats || !radioStats.data || !radioStats.data.plays) {
-          console.log(`No radio play data for ISRC: ${isrc}`);
+          // Log specifically when no radio plays are found
+          if (radioStats && radioStats.data) {
+            console.log(`Radio data found for ISRC ${isrc} but no plays available`);
+            // Log the entire radio stats for debugging
+            console.log('Radio stats data:', JSON.stringify(radioStats.data));
+          } else {
+            console.log(`No radio play data for ISRC: ${isrc}`);
+          }
           continue;
         }
+        
+        // Log found radio plays for debugging
+        console.log(`Found ${radioStats.data.plays.length} radio plays for ISRC: ${isrc}`);
         
         // Process each radio play
         for (const play of radioStats.data.plays) {
@@ -99,6 +116,7 @@ export const getRadioPlays = async (
       }
       
       console.log(`Found ISRC: ${isrc} for Spotify track: ${input.id}`);
+      totalApiCalls++;
       
       // Get track stats with radio plays using ISRC
       const trackData = await callSongstatsApi('tracks/stats', { 
@@ -111,13 +129,25 @@ export const getRadioPlays = async (
         continue;
       }
       
+      apiSuccessCalls++;
+      
       // Process radio plays from the stats
       const radioStats = trackData.stats?.find(stat => stat.source === 'radio');
       
       if (!radioStats || !radioStats.data || !radioStats.data.plays) {
-        console.log(`No radio play data for ISRC: ${isrc}`);
+        // Log specifically when no radio plays are found
+        if (radioStats && radioStats.data) {
+          console.log(`Radio data found for ISRC ${isrc} but no plays available`);
+          // Log the entire radio stats for debugging
+          console.log('Radio stats data:', JSON.stringify(radioStats.data));
+        } else {
+          console.log(`No radio play data for ISRC: ${isrc}`);
+        }
         continue;
       }
+      
+      // Log found radio plays for debugging
+      console.log(`Found ${radioStats.data.plays.length} radio plays for ISRC: ${isrc}`);
       
       // Process each radio play
       for (const play of radioStats.data.plays) {
@@ -149,9 +179,22 @@ export const getRadioPlays = async (
       }
     }
     
+    // Log summary of radio API calls
+    console.log(`Radio API stats: ${apiSuccessCalls} successful calls out of ${totalApiCalls} total calls`);
+    console.log(`Radio results: ${results.length}`);
+    
+    if (totalApiCalls > 0 && apiSuccessCalls === 0) {
+      toast.warning("No radio data could be retrieved", {
+        description: "The radio data API endpoint might be unavailable"
+      });
+    }
+    
     return results;
   } catch (error) {
     console.error('Error getting radio plays:', error);
+    toast.error("Failed to retrieve radio data", {
+      description: "Please try again later"
+    });
     return [];
   }
 };

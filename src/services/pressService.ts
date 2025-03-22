@@ -1,5 +1,6 @@
 
 import { NormalizedInput } from '@/utils/apiUtils';
+import { toast } from 'sonner';
 
 /**
  * Press result interface matching the expected output
@@ -17,11 +18,20 @@ export interface PressResult {
 
 /**
  * Get press mentions - currently using static mock data
+ * 
+ * NOTE: Press functionality is limited until a proper API solution is found
  */
 export const getPressResults = async (
   normalizedInputs: NormalizedInput[]
 ): Promise<PressResult[]> => {
   try {
+    // Inform the user that we're using mock data
+    toast.info("Using demo data for press results", {
+      description: "Press API integration is not yet available"
+    });
+    
+    console.log("NOTICE: Press reporting functionality is limited - using mock data only");
+    
     // Create a static set of press results and randomly assign them to inputs
     const pressOutlets = [
       { outlet: 'Mixmag', writer: 'Ben Murphy' },
@@ -87,6 +97,7 @@ export const getPressResults = async (
       }
     }
     
+    console.log(`Generated ${results.length} mock press results`);
     return results;
   } catch (error) {
     console.error('Error getting press results:', error);
