@@ -1,12 +1,12 @@
 
 import { NormalizedInput } from '@/utils/apiUtils';
 import { toast } from 'sonner';
+import { showServiceError } from '@/hooks/research-form/errorHandler';
 
-// API endpoint for 1001Tracklists (you'll need to replace with the actual endpoint)
+// API endpoint for 1001Tracklists
 const TRACKLISTS_API_BASE_URL = 'https://api.1001tracklists.com/v1';
 
-// API key would be secured in production environment
-// Using Vite's import.meta.env instead of process.env
+// Using import.meta.env for Vite's environment variables
 const TRACKLISTS_API_KEY = import.meta.env.VITE_TRACKLISTS_API_KEY || 'mock-api-key';
 
 /**
@@ -48,8 +48,16 @@ async function searchTracklistsByTrack(isrc: string): Promise<TracklistsApiRespo
   try {
     console.log(`Searching 1001Tracklists for ISRC: ${isrc}`);
     
+    // Check if API key is set
+    if (!TRACKLISTS_API_KEY || TRACKLISTS_API_KEY === 'mock-api-key') {
+      console.log('1001Tracklists API key not configured - using mock data');
+      return {
+        success: false,
+        error: "API key not configured"
+      };
+    }
+    
     // This is a placeholder - in production, you would implement an actual API call
-    // Since we don't have actual API access yet, we'll return a placeholder response
     console.log('1001Tracklists API not implemented yet - using mock data');
     
     // Simulate API call
@@ -158,9 +166,7 @@ export const getDjPlacements = async (
     return results;
   } catch (error) {
     console.error('Error getting DJ placements:', error);
-    toast.error("Failed to retrieve DJ data", {
-      description: "Falling back to sample data"
-    });
+    showServiceError('DJ', error);
     return generateMockDjData(normalizedInputs);
   }
 };
@@ -171,6 +177,8 @@ export const getDjPlacements = async (
 function generateMockDjData(normalizedInputs: NormalizedInput[]): DjResult[] {
   const results: DjResult[] = [];
   const processedDjs = new Map<string, DjResult>();
+  
+  console.log('Generating mock DJ data for', normalizedInputs.length, 'inputs');
   
   // Process each input
   for (const input of normalizedInputs) {
@@ -216,6 +224,10 @@ function generateMockDjData(normalizedInputs: NormalizedInput[]): DjResult[] {
       }
     }
   }
+  
+  toast.info('Using mock data for DJ results', {
+    description: '1001Tracklists API integration is in development'
+  });
   
   return results;
 }
