@@ -23,41 +23,49 @@ export const getDjPlacements = async (
       // We'll only process ISRC inputs for now
       if (input.type === 'isrc') {
         apiAttempts++;
+        console.log(`Searching 1001Tracklists for ISRC: ${input.id}`);
+        
         const response = await searchTracklistsByTrack(input.id);
         
         if (!response.success || !response.data) {
-          console.log(`No tracklists found for ISRC: ${input.id}`);
+          console.log(`No tracklists found for ISRC: ${input.id}`, response.error || 'Unknown reason');
           continue;
         }
         
         apiSuccesses++;
         
         // Process tracklists from the API response
-        for (const tracklist of response.data.tracklists) {
-          const djKey = `${tracklist.dj}-${tracklist.name}-${tracklist.date}`;
+        if (response.data.tracklists && response.data.tracklists.length > 0) {
+          console.log(`Found ${response.data.tracklists.length} tracklists for ISRC: ${input.id}`);
           
-          if (processedDjs.has(djKey)) {
-            // If we've seen this DJ before, update the matched inputs
-            const existingDj = processedDjs.get(djKey)!;
-            if (!existingDj.matchedInputs.includes(input.inputIndex)) {
-              existingDj.matchedInputs.push(input.inputIndex);
-            }
-          } else {
-            // Otherwise, create a new result
-            const result: DjResult = {
-              id: tracklist.id || `dj-${input.inputIndex}-${results.length}`,
-              dj: tracklist.dj,
-              event: tracklist.name,
-              location: tracklist.venue,
-              date: tracklist.date,
-              matchedInputs: [input.inputIndex],
-              tracklistUrl: tracklist.url,
-              vertical: 'dj'
-            };
+          for (const tracklist of response.data.tracklists) {
+            const djKey = `${tracklist.dj}-${tracklist.name}-${tracklist.date}`;
             
-            processedDjs.set(djKey, result);
-            results.push(result);
+            if (processedDjs.has(djKey)) {
+              // If we've seen this DJ before, update the matched inputs
+              const existingDj = processedDjs.get(djKey)!;
+              if (!existingDj.matchedInputs.includes(input.inputIndex)) {
+                existingDj.matchedInputs.push(input.inputIndex);
+              }
+            } else {
+              // Otherwise, create a new result
+              const result: DjResult = {
+                id: tracklist.id || `dj-${input.inputIndex}-${results.length}`,
+                dj: tracklist.dj || 'Unknown DJ',
+                event: tracklist.name || 'Unknown Event',
+                location: tracklist.venue || 'Unknown Venue',
+                date: tracklist.date || new Date().toISOString(),
+                matchedInputs: [input.inputIndex],
+                tracklistUrl: tracklist.url,
+                vertical: 'dj'
+              };
+              
+              processedDjs.set(djKey, result);
+              results.push(result);
+            }
           }
+        } else {
+          console.log(`No tracklists found in the response for ISRC: ${input.id}`);
         }
       }
     }

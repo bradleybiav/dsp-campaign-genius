@@ -1,7 +1,6 @@
 
 import { TracklistsApiResponse } from './types';
 import { showServiceError } from '@/hooks/research-form/errorHandler';
-import { toast } from 'sonner';
 
 // Using import.meta.env for Vite's environment variables
 const TRACKLISTS_API_KEY = import.meta.env.VITE_TRACKLISTS_API_KEY || '';
@@ -38,6 +37,7 @@ export async function searchTracklistsByTrack(isrc: string): Promise<TracklistsA
       
       if (!response.ok) {
         const error = await response.text();
+        console.error(`Tracklists API returned ${response.status}: ${error}`);
         throw new Error(`API returned ${response.status}: ${error}`);
       }
       

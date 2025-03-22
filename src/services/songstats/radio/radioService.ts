@@ -5,7 +5,7 @@ import { callSongstatsApi, getISRCFromSpotifyTrack } from '../apiClient';
 import { processRadioData } from './radioDataProcessor';
 
 /**
- * Get radio plays for a track using the Enterprise API
+ * Get radio plays for a track using the RadioStats API
  */
 export const getRadioPlays = async (
   normalizedInputs: NormalizedInput[]
@@ -42,10 +42,11 @@ export const getRadioPlays = async (
       
       radioApiStats.total++;
       
-      // Get track stats with radio using ISRC - using the RadioStats specific endpoint
-      // According to docs, this is the preferred endpoint for radio stats
-      const trackData = await callSongstatsApi('radio/isrc', { 
-        isrc: isrc
+      // Call the tracks/stats endpoint with the radio parameter instead of radio/isrc
+      // This approach is more reliable as per the documentation
+      const trackData = await callSongstatsApi('tracks/stats', { 
+        isrc: isrc,
+        with_radio: "true" // Using string "true" instead of boolean true
       });
       
       if (!trackData || trackData.error) {

@@ -18,32 +18,41 @@ export const processRadioData = (
     return newResults;
   }
   
-  // Per API docs, the main data is in the "data" field, which contains
-  // information about the track and its radio plays
-  const data = radioData.data || {};
+  // Find the radio stats section from the response
+  // The tracks/stats endpoint with with_radio=true returns stats in a different format
+  const radioStats = radioData.stats?.find((stat: any) => 
+    stat.source === 'radio' || 
+    (stat.source === 'stats' && stat.data?.radio_plays_total !== undefined)
+  );
+  
+  // If no radio data found, return empty results
+  if (!radioStats || !radioStats.data) {
+    console.log(`No radio stats found in response for input index: ${inputIndex}`);
+    return newResults;
+  }
   
   // Log the stats we found
   const statsData = {
-    spins: data.spins || 0,
-    total_stations: data.total_stations || 0,
-    sxm_spins: data.sxm_spins || 0
+    radio_plays_total: radioStats.data.radio_plays_total || 0,
+    radio_stations_total: radioStats.data.radio_stations_total || 0,
+    sxm_plays_total: radioStats.data.sxm_plays_total || 0
   };
   console.log(`Radio stats data:`, JSON.stringify(statsData));
   
   // Check for detailed airplay data
-  const airplays = data.airplay || [];
+  const radioPlays = radioStats.data.radio_plays || [];
   
-  if (airplays.length > 0) {
+  if (radioPlays.length > 0) {
     // Process actual play data from the API
-    console.log(`Found ${airplays.length} radio plays`);
+    console.log(`Found ${radioPlays.length} radio plays`);
     
     // Group plays by station to consolidate multiple plays at the same station
     const stationPlays = new Map<string, any[]>();
     
-    for (const play of airplays) {
+    for (const play of radioPlays) {
       // Station id should be unique per station
       const stationKey = play.station_id || 
-        play.station_name || 
+        play.station || 
         play.call_sign || 
         `station-${Math.random().toString(36).substring(2, 10)}`;
       
@@ -62,7 +71,7 @@ export const processRadioData = (
       // Create a consolidated play object with the total count
       const consolidatedPlay = {
         station_id: stationKey,
-        station: stationData.station_name || stationData.call_sign || 'Unknown Station',
+        station: stationData.station || stationData.call_sign || 'Unknown Station',
         dj: stationData.dj || undefined,
         show: stationData.show || undefined,
         country: stationData.country || 'Unknown',
@@ -82,18 +91,18 @@ export const processRadioData = (
         processedStations.set(result.id, result);
       }
     }
-  } else if (statsData.spins > 0) {
+  } else if (statsData.radio_plays_total > 0) {
     // When we only have summary data but no detailed plays,
     // create station entries based on the summary data
-    console.log(`Radio plays found (${statsData.spins}) but no detailed station information`);
+    console.log(`Radio plays found (${statsData.radio_plays_total}) but no detailed station information`);
     
     // Handle SiriusXM plays if present
-    if (statsData.sxm_spins > 0) {
+    if (statsData.sxm_plays_total > 0) {
       const sxmResult = createOrUpdateSummaryStation(
         'SiriusXM',
         'sirius-xm',
         'USA',
-        statsData.sxm_spins,
+        statsData.sxm_plays_total,
         inputIndex,
         processedStations
       );
@@ -105,7 +114,7 @@ export const processRadioData = (
     }
     
     // Handle terrestrial radio plays
-    const terrestrialPlays = statsData.spins - (statsData.sxm_spins || 0);
+    const terrestrialPlays = statsData.radio_plays_total - (statsData.sxm_plays_total || 0);
     
     if (terrestrialPlays > 0) {
       const terrestrialResult = createOrUpdateSummaryStation(

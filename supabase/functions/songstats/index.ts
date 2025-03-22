@@ -3,8 +3,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders } from "../_shared/cors.ts"
 
 // Default base URL for Songstats Enterprise API
-// RadioStats API uses the same base URL structure
 const ENTERPRISE_API_URL = 'https://api.songstats.com/enterprise/v1';
+const RADIOSTATS_API_URL = 'https://api.songstats.com/radiostats/v1';
 
 // Maximum retries for API calls
 const MAX_RETRIES = 3;
@@ -77,16 +77,19 @@ async function processApiResponse(response: Response): Promise<object> {
 }
 
 /**
- * Call the Songstats Enterprise API
- * This function now handles both Enterprise API and RadioStats API calls
+ * Call the Songstats API (Enterprise or RadioStats)
  */
-async function callEnterpriseApi(path: string, params: any, apiKey: string): Promise<any> {
+async function callSongstatsApi(path: string, params: any, apiKey: string): Promise<any> {
   const queryParams = new URLSearchParams(params);
   
-  // For radio endpoints, use RadioStats API URL
-  const baseUrl = path.startsWith('radio/') 
-    ? ENTERPRISE_API_URL.replace('enterprise', 'radiostats') 
-    : ENTERPRISE_API_URL;
+  // Determine which API to use based on the path or params
+  let baseUrl = ENTERPRISE_API_URL;
+  
+  // If the path explicitly starts with 'radio/' or we're requesting radio data,
+  // use the RadioStats API
+  if (path.startsWith('radio/') || params.with_radio === "true") {
+    baseUrl = RADIOSTATS_API_URL;
+  }
   
   const url = `${baseUrl}/${path}?${queryParams.toString()}`;
   
@@ -136,8 +139,8 @@ serve(async (req) => {
     }
 
     try {
-      // Call the Enterprise API with the provided path and params
-      const result = await callEnterpriseApi(path, params, apiKey);
+      // Call the API with the provided path and params
+      const result = await callSongstatsApi(path, params, apiKey);
       
       // Return processed data with CORS headers
       return new Response(
