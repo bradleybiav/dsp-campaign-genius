@@ -31,8 +31,8 @@ export async function executeResearch(
   // If API is not configured, return mock data
   if (!apiConfigured) {
     console.warn('Songstats API configuration check failed, using mock data');
-    toast.error('Songstats API key is not configured', {
-      description: 'Using demo data for research results'
+    toast.warning('Using demo data for research results', {
+      description: 'API access is unavailable at this time'
     });
     
     return generateMockResearchResults(normalizedInputs, selectedVerticals);
@@ -40,6 +40,7 @@ export async function executeResearch(
   
   // Execute vertical-specific research based on selected verticals
   const researchPromises: Promise<void>[] = [];
+  const successfulVerticals: string[] = [];
   
   // DSP vertical
   if (selectedVerticals.includes('dsp')) {
@@ -47,6 +48,7 @@ export async function executeResearch(
       .then(results => {
         researchResults.dspResults = results;
         console.log('DSP results:', results.length);
+        if (results.length > 0) successfulVerticals.push('dsp');
       })
       .catch(error => showServiceError('Playlist', error));
     researchPromises.push(dspPromise);
@@ -58,6 +60,7 @@ export async function executeResearch(
       .then(results => {
         researchResults.radioResults = results;
         console.log('Radio results:', results.length);
+        if (results.length > 0) successfulVerticals.push('radio');
       })
       .catch(error => showServiceError('Radio', error));
     researchPromises.push(radioPromise);
@@ -69,6 +72,7 @@ export async function executeResearch(
       .then(results => {
         researchResults.djResults = results;
         console.log('DJ results:', results.length);
+        if (results.length > 0) successfulVerticals.push('dj');
       })
       .catch(error => showServiceError('DJ', error));
     researchPromises.push(djPromise);
@@ -80,6 +84,7 @@ export async function executeResearch(
       .then(results => {
         researchResults.pressResults = results;
         console.log('Press results:', results.length);
+        if (results.length > 0) successfulVerticals.push('press');
       })
       .catch(error => showServiceError('Press', error));
     researchPromises.push(pressPromise);
@@ -94,6 +99,14 @@ export async function executeResearch(
     researchResults.radioResults.length > 0 ||
     researchResults.djResults.length > 0 ||
     researchResults.pressResults.length > 0;
+  
+  // Show which verticals succeeded
+  if (hasResults && successfulVerticals.length > 0) {
+    console.log('Live data retrieved for verticals:', successfulVerticals);
+    toast.success('Research completed successfully', {
+      description: `Found data in ${successfulVerticals.join(', ')} verticals`
+    });
+  }
   
   // If no results, fallback to mock data
   if (!hasResults) {

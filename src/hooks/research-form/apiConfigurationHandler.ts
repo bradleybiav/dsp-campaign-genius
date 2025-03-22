@@ -10,35 +10,36 @@ export async function testSongstatsApi() {
   try {
     console.log('Testing Songstats API connection...');
     
-    // Try different endpoint formats to account for API version differences
-    // First try v2 health endpoint
-    let testResult = await callSongstatsApi('v2/health');
+    // Try these endpoints in order
+    const endpointsToTest = [
+      { path: 'me', description: 'account info' },
+      { path: 'health', description: 'health check' },
+      { path: 'users/current', description: 'current user' },
+      { path: 'tracks/top', params: { limit: 1 }, description: 'top tracks' }
+    ];
     
-    // If that fails, try v1 health
-    if (!testResult) {
-      testResult = await callSongstatsApi('health');
-    }
-    
-    // If health endpoints fail, try a specific test with a popular track ID
-    if (!testResult) {
-      console.log('Testing with a specific track ID...');
-      const testTrackId = '3Wrjm47oTz2sjIgck11l5e'; // Billie Eilish - bad guy
+    for (const endpoint of endpointsToTest) {
+      console.log(`Testing ${endpoint.description} endpoint: ${endpoint.path}`);
+      const testResult = await callSongstatsApi(endpoint.path, endpoint.params || {});
       
-      // Try both v1 and v2 formats
-      testResult = await callSongstatsApi('v2/tracks/spotify', { 
-        id: testTrackId
-      });
-      
-      if (!testResult) {
-        testResult = await callSongstatsApi('tracks/spotify', { 
-          id: testTrackId
-        });
+      if (testResult && !testResult.error) {
+        console.log(`✅ API test successful with ${endpoint.description}!`, testResult);
+        return true;
       }
+      
+      console.log(`${endpoint.description} test failed, trying next endpoint...`);
     }
     
-    // If we get any response, consider it a success
-    if (testResult) {
-      console.log('✅ API test successful!', testResult);
+    // If we get this far, try a specific track ID test as last resort
+    console.log('Testing with a specific track ID...');
+    const testTrackId = '3Wrjm47oTz2sjIgck11l5e'; // Billie Eilish - bad guy
+    
+    const trackResult = await callSongstatsApi('tracks/spotify', { 
+      id: testTrackId
+    });
+    
+    if (trackResult && !trackResult.error) {
+      console.log('✅ API test successful with track lookup!', trackResult);
       return true;
     }
     
@@ -78,12 +79,16 @@ export async function checkAPIConfiguration(): Promise<boolean> {
       return false;
     }
     
+    // Check if we have detailed API response info
+    if (apiKeyStatus.apiResponseInfo && apiKeyStatus.apiResponseInfo.data) {
+      console.log('API responded with data:', apiKeyStatus.apiResponseInfo.data);
+      console.log('✅ Songstats API is properly configured');
+      return true;
+    }
+    
     if (apiKeyStatus.apiError) {
       console.warn('API key validation failed:', apiKeyStatus.apiError);
-      toast.warning('Songstats API key may be invalid', {
-        description: 'Using demo data as fallback'
-      });
-      // Continue with reduced confidence
+      // Don't show error toast yet, we'll try additional tests
     }
     
     // Run an additional connectivity test to verify API access

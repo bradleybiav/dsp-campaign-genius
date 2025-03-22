@@ -2,8 +2,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders } from "../_shared/cors.ts"
 
-// Base URL according to Songstats API docs
-const SONGSTATS_API_URL = 'https://api.songstats.com/api/v1';
+// API versions supported by Songstats
+const API_VERSIONS = ['v1', 'v2'];
+// Default base URL (will be modified based on API version detection)
+const DEFAULT_API_URL = 'https://api.songstats.com/api';
 
 // Maximum retries for API calls
 const MAX_RETRIES = 3;
@@ -52,7 +54,7 @@ async function processApiResponse(response: Response): Promise<object> {
     const text = await response.text();
     
     try {
-      const data = JSON.parse(text);
+      const data = JSON.parse(text || "{}");
       
       // If non-success status code, include error information
       if (!response.ok) {
@@ -82,6 +84,70 @@ async function processApiResponse(response: Response): Promise<object> {
   }
 }
 
+/**
+ * Try different API versions and endpoint structures
+ */
+async function tryMultipleEndpoints(basePath: string, params: any, apiKey: string): Promise<{ result: any, successUrl?: string }> {
+  const requestOptions = {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    }
+  };
+
+  const endpointsToTry = [];
+  
+  // Try with prefix /api first as it's in the official docs
+  for (const version of API_VERSIONS) {
+    endpointsToTry.push(`https://api.songstats.com/api/${version}/${basePath}`);
+  }
+  
+  // Then try without /api prefix
+  for (const version of API_VERSIONS) {
+    endpointsToTry.push(`https://api.songstats.com/${version}/${basePath}`);
+  }
+  
+  // Finally try direct endpoint without version
+  endpointsToTry.push(`https://api.songstats.com/api/${basePath}`);
+  endpointsToTry.push(`https://api.songstats.com/${basePath}`);
+  
+  console.log(`Will try these endpoints:`, endpointsToTry);
+  
+  for (const apiUrl of endpointsToTry) {
+    try {
+      let fullUrl = apiUrl;
+      
+      if (params && Object.keys(params).length > 0) {
+        const queryParams = new URLSearchParams(params);
+        fullUrl = `${apiUrl}?${queryParams.toString()}`;
+      }
+      
+      console.log(`Trying Songstats API at: ${fullUrl}`);
+      
+      const response = await fetchWithRetry(fullUrl, requestOptions, 0);
+      const responseData = await processApiResponse(response);
+      
+      if (response.ok && !responseData.error) {
+        console.log(`Found working endpoint: ${apiUrl}`);
+        return { result: responseData, successUrl: apiUrl };
+      }
+      
+      console.log(`Endpoint ${apiUrl} returned ${response.status}`);
+    } catch (e) {
+      console.error(`Error with endpoint ${apiUrl}:`, e.message);
+    }
+  }
+  
+  // If we get here, all endpoints failed
+  return { 
+    result: { 
+      error: "All Songstats API endpoints failed", 
+      attemptedEndpoints: endpointsToTry 
+    } 
+  };
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -107,36 +173,19 @@ serve(async (req) => {
     }
 
     try {
-      // Fix for the API endpoint structure - try both v1 and updated endpoints
-      const isV2Request = path.startsWith('v2/');
-      const apiPath = isV2Request ? path : `v1/${path}`;
+      // Strip any version prefix from the path to allow us to try different versions
+      const cleanedPath = path.replace(/^v[12]\//, '');
       
-      // Build the API URL with query parameters
-      let apiUrl = `https://api.songstats.com/${apiPath}`;
+      // Try multiple endpoint formats to find one that works
+      const { result, successUrl } = await tryMultipleEndpoints(cleanedPath, params, apiKey);
       
-      if (params && Object.keys(params).length > 0) {
-        const queryParams = new URLSearchParams(params);
-        apiUrl = `${apiUrl}?${queryParams.toString()}`;
+      if (successUrl) {
+        console.log(`Successfully used endpoint: ${successUrl}`);
       }
-      
-      console.log(`Calling Songstats API at: ${apiUrl}`);
-      
-      // Call Songstats API with retry logic
-      const response = await fetchWithRetry(apiUrl, {
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-      });
-
-      // Process the response
-      const responseData = await processApiResponse(response);
-      console.log(`API response status: ${response.status}`);
       
       // Return processed data with CORS headers
       return new Response(
-        JSON.stringify(responseData),
+        JSON.stringify(result),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     } catch (apiError) {

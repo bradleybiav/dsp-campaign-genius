@@ -21,11 +21,12 @@ serve(async (req) => {
     // Try making a simple test request to validate the key
     let apiTestResult = null;
     let apiError = null;
+    let apiResponseInfo = null;
     
     if (apiKey && apiKey.length >= 10) {
       try {
-        // Use a simple endpoint to test the API key
-        const testUrl = 'https://api.songstats.com/v1/health';
+        // First try the official endpoint mentioned in documentation
+        const testUrl = 'https://api.songstats.com/api/v1/me';
         const response = await fetch(testUrl, {
           headers: {
             Authorization: `Bearer ${apiKey}`,
@@ -34,9 +35,15 @@ serve(async (req) => {
         });
         
         console.log("API test response status:", response.status);
+        apiResponseInfo = {
+          status: response.status,
+          url: testUrl
+        };
         
         if (response.ok) {
           apiTestResult = 'success';
+          const data = await response.json();
+          apiResponseInfo.data = data;
         } else {
           const errorText = await response.text();
           apiError = `API responded with status ${response.status}: ${errorText.substring(0, 100)}`;
@@ -57,6 +64,7 @@ serve(async (req) => {
         valid: isValidFormat,
         apiTestResult,
         apiError,
+        apiResponseInfo,
         message: apiKey 
           ? `API key is ${isValidFormat ? "configured properly" : "configured but may be invalid"}`
           : "API key is not configured",

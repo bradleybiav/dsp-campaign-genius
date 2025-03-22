@@ -16,6 +16,15 @@ export const handleApiError = (service: string, error: any) => {
     });
   }
   
+  // Additional logging for API specific errors
+  if (error?.status || error?.error) {
+    console.error(`${service} API error details:`, {
+      status: error.status,
+      error: error.error,
+      details: error.details
+    });
+  }
+  
   return errorMessage;
 };
 
@@ -24,7 +33,23 @@ export const handleApiError = (service: string, error: any) => {
  */
 export const showServiceError = (service: string, error: any) => {
   const errorMsg = handleApiError(service, error);
-  toast.error(`Failed to fetch ${service} data`, { 
-    description: errorMsg.substring(0, 100) 
-  });
+  
+  // Customize the error message based on common API errors
+  if (error?.status === 404) {
+    toast.warning(`${service} resource not found`, { 
+      description: 'This endpoint may not be available in your API subscription'
+    });
+  } else if (error?.status === 401 || error?.status === 403) {
+    toast.error(`Authentication error with ${service}`, { 
+      description: 'Please check your API credentials'
+    });
+  } else if (error?.status === 429) {
+    toast.warning(`Rate limit exceeded for ${service}`, { 
+      description: 'Please try again later'
+    });
+  } else {
+    toast.error(`Failed to fetch ${service} data`, { 
+      description: errorMsg.substring(0, 100) 
+    });
+  }
 };

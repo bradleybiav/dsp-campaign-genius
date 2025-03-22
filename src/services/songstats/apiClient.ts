@@ -72,11 +72,8 @@ export const callSongstatsApi = async (
         return null;
       }
       
-      toast.error(`API Error: ${data.error}`, {
-        description: data.details || `Path: ${path}`
-      });
-      
-      return null;
+      // Return data anyway, the caller might be able to use partial results
+      return data;
     }
 
     return data;
@@ -136,56 +133,40 @@ export const getSongstatsId = async (spotifyId: string, type: 'track' | 'artist'
   try {
     console.log(`Getting Songstats ID for Spotify ${type}: ${spotifyId}`);
     
-    // Try updated endpoint path first (v2)
-    let data = await callSongstatsApi(`v2/mappings/spotify`, {
-      id: spotifyId,
-      type: type
-    });
+    // Try updated endpoint paths
+    const endpointsToTry = [
+      `mappings/spotify?id=${spotifyId}&type=${type}`,
+      `${type}s/spotify?id=${spotifyId}`,
+      `${type}s/${spotifyId}`
+    ];
     
-    // If that fails, try legacy endpoint (without explicit v1)
-    if (!data || data.error) {
-      console.log(`Retrying with legacy mapping endpoint format...`);
-      data = await callSongstatsApi(`mappings/spotify`, {
-        id: spotifyId,
-        type: type
-      });
-    }
-    
-    // Try one more direct format if needed
-    if (!data || data.error) {
-      console.log(`Retrying with direct ID lookup...`);
+    for (const endpoint of endpointsToTry) {
+      console.log(`Trying endpoint: ${endpoint}`);
+      const data = await callSongstatsApi(endpoint);
       
-      // Try direct lookup - format may vary by API version
-      const directPath = type === 'track' 
-        ? `tracks/${spotifyId}` 
-        : `artists/${spotifyId}`;
+      if (!data || data.error) {
+        continue;
+      }
       
-      data = await callSongstatsApi(directPath);
+      // Extract ID based on different possible response formats
+      let songstatsId = null;
+      
+      if (data.songstats_id) {
+        songstatsId = data.songstats_id;
+      } else if (data.id) {
+        songstatsId = data.id;
+      } else if (data.data && data.data.id) {
+        songstatsId = data.data.id;
+      }
+      
+      if (songstatsId) {
+        console.log(`Songstats ID found: ${songstatsId}`);
+        return songstatsId;
+      }
     }
     
-    if (!data) {
-      console.log(`No mapping found for ${type} ${spotifyId}`);
-      return null;
-    }
-    
-    // Extract ID based on different possible response formats
-    let songstatsId = null;
-    
-    if (data.songstats_id) {
-      songstatsId = data.songstats_id;
-    } else if (data.id) {
-      songstatsId = data.id;
-    } else if (data.data && data.data.id) {
-      songstatsId = data.data.id;
-    }
-    
-    if (!songstatsId) {
-      console.log(`Songstats ID not found in response for ${type} ${spotifyId}`);
-      return null;
-    }
-    
-    console.log(`Songstats ID found: ${songstatsId}`);
-    return songstatsId;
+    console.log(`Songstats ID not found for ${type} ${spotifyId} after trying multiple endpoints`);
+    return null;
   } catch (error) {
     console.error('Error getting Songstats ID:', error);
     return null;
