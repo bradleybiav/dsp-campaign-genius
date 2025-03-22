@@ -1,3 +1,4 @@
+
 import { NormalizedInput } from '@/utils/apiUtils';
 import { callSongstatsApi, getSongstatsId } from './apiClient';
 
@@ -18,6 +19,7 @@ export interface RadioResult {
 
 /**
  * Get radio play data for tracks
+ * Updated to match current Songstats API documentation
  */
 export const getRadioPlays = async (
   normalizedInputs: NormalizedInput[]
@@ -35,17 +37,17 @@ export const getRadioPlays = async (
       const songstatsId = await getSongstatsId(input.id, 'track');
       if (!songstatsId) continue;
       
-      // Call the radio endpoint
-      const data = await callSongstatsApi(`tracks/${songstatsId}/radio`);
+      // Call the radio endpoint - updated path format
+      const data = await callSongstatsApi(`track/${songstatsId}/radio`);
       
-      if (!data || !data.radiostats || data.error) {
+      if (!data || !data.radio || data.error) {
         console.error('Error getting radio plays:', data?.error || 'Unknown error');
         continue;
       }
       
       // Process each radio play
-      for (const play of data.radiostats) {
-        const radioKey = `${play.station}-${play.show}-${play.dj}`;
+      for (const play of data.radio) {
+        const radioKey = `${play.station}-${play.show || ''}-${play.dj || ''}`;
         
         if (processedRadios.has(radioKey)) {
           // If we've seen this radio before, update the matched inputs
@@ -63,7 +65,7 @@ export const getRadioPlays = async (
             country: play.country,
             lastSpin: play.last_spin,
             matchedInputs: [input.inputIndex],
-            airplayLink: play.url,
+            airplayLink: play.url || '',
             vertical: 'radio'
           };
           

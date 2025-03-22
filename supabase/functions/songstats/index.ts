@@ -2,10 +2,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders } from "../_shared/cors.ts"
 
-// Original URL that's returning 404 errors
-const SONGSTATS_API_URL = 'https://api.songstats.com/v1';
-// Alternative base URL to try if needed
-const SONGSTATS_API_URL_ALT = 'https://api.songstats.com/api/v1';
+// Updated base URL according to docs
+const SONGSTATS_API_URL = 'https://api.songstats.com/api/v1';
+
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 500;
 
@@ -63,45 +62,6 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 0): P
 }
 
 /**
- * Try to fetch from an alternative URL if the main one fails
- */
-async function fetchWithAlternativeUrl(path: string, params: Record<string, string>, options: RequestInit): Promise<Response> {
-  try {
-    // First try with the primary URL
-    let primaryUrl = `${SONGSTATS_API_URL}/${path}`;
-    
-    if (params) {
-      const queryParams = new URLSearchParams(params);
-      primaryUrl = `${primaryUrl}?${queryParams.toString()}`;
-    }
-    
-    console.log(`Trying primary URL: ${primaryUrl}`);
-    const primaryResponse = await fetchWithRetry(primaryUrl, options);
-    
-    // If the primary URL returns a 404, try the alternative URL
-    if (primaryResponse.status === 404) {
-      console.log(`Primary URL returned 404, trying alternative URL format`);
-      
-      // Try different URL structure for the API
-      let alternativeUrl = `${SONGSTATS_API_URL_ALT}/${path}`;
-      
-      if (params) {
-        const queryParams = new URLSearchParams(params);
-        alternativeUrl = `${alternativeUrl}?${queryParams.toString()}`;
-      }
-      
-      console.log(`Trying alternative URL: ${alternativeUrl}`);
-      return await fetchWithRetry(alternativeUrl, options);
-    }
-    
-    return primaryResponse;
-  } catch (error) {
-    console.error(`Error in fetchWithAlternativeUrl:`, error);
-    throw error;
-  }
-}
-
-/**
  * Helper function to validate API key before making requests
  */
 function validateApiKey(apiKey: string | undefined): boolean {
@@ -144,8 +104,18 @@ serve(async (req) => {
     }
 
     try {
-      // Make request to Songstats API with retry logic and alternative URL fallback
-      const response = await fetchWithAlternativeUrl(path, params, {
+      // Build the URL according to the API docs
+      let apiUrl = `${SONGSTATS_API_URL}/${path}`;
+      
+      if (params) {
+        const queryParams = new URLSearchParams(params);
+        apiUrl = `${apiUrl}?${queryParams.toString()}`;
+      }
+      
+      console.log(`Making request to Songstats API: ${apiUrl}`);
+      
+      // Make request to Songstats API with retry logic
+      const response = await fetchWithRetry(apiUrl, {
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
@@ -172,7 +142,7 @@ serve(async (req) => {
             error: errorMessage,
             status: response.status,
             details: errorDetails,
-            troubleshooting: "The Songstats API may have changed its endpoint structure or format. Please check if the API is still active and if your API key is valid."
+            troubleshooting: "The Songstats API may have changed. Please check the API documentation at https://docs.songstats.com/ for the latest endpoints."
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: response.status }
         );
@@ -193,7 +163,7 @@ serve(async (req) => {
         JSON.stringify({ 
           error: "Error calling Songstats API",
           details: apiError.message,
-          troubleshooting: "The Songstats API might be unavailable or the endpoint structure may have changed. Please check if the API is still active and if your API key is valid."
+          troubleshooting: "The Songstats API might be unavailable or the endpoint structure may have changed. Please check the API documentation at https://docs.songstats.com/."
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 502 }
       );

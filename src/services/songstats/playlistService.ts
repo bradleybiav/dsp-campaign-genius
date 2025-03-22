@@ -1,9 +1,11 @@
+
 import { PlaylistResult } from '@/components/ResultsTable';
 import { NormalizedInput } from '@/utils/apiUtils';
 import { callSongstatsApi, getSongstatsId } from './apiClient';
 
 /**
  * Get playlist placements for a track
+ * Updated to match current Songstats API documentation
  */
 export const getPlaylistPlacements = async (
   normalizedInputs: NormalizedInput[]
@@ -25,8 +27,11 @@ export const getPlaylistPlacements = async (
       
       if (!songstatsId) continue;
       
-      // Call the playlists endpoint
-      const data = await callSongstatsApi(`${input.type === 'spotify_track' ? 'tracks' : 'artists'}/${songstatsId}/playlists`);
+      // Call the playlists endpoint - updated path format
+      const data = await callSongstatsApi(
+        `${input.type === 'spotify_track' ? 'track' : 'artist'}/${songstatsId}/playlists`,
+        { platform: 'spotify' }  // Specify platform as per docs
+      );
       
       if (!data || !data.playlists || data.error) {
         console.error('Error getting playlists:', data?.error || 'Unknown error');

@@ -29,40 +29,50 @@ async function testSongstatsApi() {
   try {
     console.log('Testing Songstats API connection...');
     
-    // Step 1: Test the main API health/status endpoint if available
-    console.log('Step 1: Testing API health endpoint');
+    // Step 1: Test the API version endpoint
+    console.log('Step 1: Testing API version endpoint');
     try {
-      const healthCheck = await callSongstatsApi('', {});
-      console.log('Health check result:', healthCheck);
+      const versionCheck = await callSongstatsApi('version', {});
+      console.log('Version check result:', versionCheck);
     } catch (err) {
-      console.warn('Health check failed, but continuing with specific endpoint tests');
+      console.warn('Version check failed, but continuing with specific endpoint tests');
     }
     
-    // Step 2: Test a specific endpoint with a known track ID
-    console.log('Step 2: Testing search endpoint with a known track');
-    const testTrackResult = await callSongstatsApi('search', { 
-      q: 'spotify:track:3Wrjm47oTz2sjIgck11l5e' // Billie Eilish - bad guy
+    // Step 2: Test the mappings endpoint with a known track ID
+    console.log('Step 2: Testing mappings endpoint with a known track');
+    const testTrackId = '3Wrjm47oTz2sjIgck11l5e'; // Billie Eilish - bad guy
+    const testTrackResult = await callSongstatsApi('mappings/spotify', { 
+      id: testTrackId,
+      type: 'track'
     });
     
-    console.log('Search endpoint test result:', testTrackResult);
+    console.log('Mappings endpoint test result:', testTrackResult);
     
-    if (testTrackResult && testTrackResult.id) {
-      console.log('✅ Search endpoint test successful!');
+    if (testTrackResult && testTrackResult.songstats_id) {
+      console.log('✅ Mappings endpoint test successful!');
+      
+      // Step 3: If mapping was successful, try to get track details
+      const trackId = testTrackResult.songstats_id;
+      console.log('Step 3: Testing track details endpoint');
+      const trackDetails = await callSongstatsApi(`tracks/${trackId}`, {});
+      console.log('Track details test result:', trackDetails);
     } else {
-      console.error('❌ Search endpoint test failed - invalid response format:', testTrackResult);
+      console.error('❌ Mappings endpoint test failed - invalid response format:', testTrackResult);
       return false;
     }
     
-    // Step 3: Verify the correct handling of Spotify Artist IDs
-    console.log('Step 3: Testing artist ID handling');
-    const testArtistResult = await callSongstatsApi('search', {
-      q: 'spotify:artist:4dpARuHxo51G3z768sgnrY' // Adele
+    // Step 4: Test artist mapping
+    console.log('Step 4: Testing artist mapping');
+    const testArtistId = '4dpARuHxo51G3z768sgnrY'; // Adele
+    const testArtistResult = await callSongstatsApi('mappings/spotify', {
+      id: testArtistId,
+      type: 'artist'
     });
     
-    console.log('Artist search test result:', testArtistResult);
+    console.log('Artist mapping test result:', testArtistResult);
     
     // Return overall status
-    const apiWorking = !!(testTrackResult && testTrackResult.id);
+    const apiWorking = !!(testTrackResult && testTrackResult.songstats_id);
     console.log(`Songstats API testing complete. Working: ${apiWorking}`);
     return apiWorking;
     

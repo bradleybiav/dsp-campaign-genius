@@ -111,14 +111,17 @@ export const callSongstatsApi = async (
 
 /**
  * Get Songstats ID from Spotify URL
+ * Updated based on Songstats API documentation
  */
 export const getSongstatsId = async (spotifyId: string, type: 'track' | 'artist'): Promise<string | null> => {
   try {
     console.log(`Getting Songstats ID for Spotify ${type} ID: ${spotifyId}`);
     
     // Call the Edge Function to get Songstats ID
-    const data = await callSongstatsApi('search', {
-      q: `spotify:${type}:${spotifyId}`
+    // Updated to match the current API structure
+    const data = await callSongstatsApi('mappings/spotify', {
+      id: spotifyId,
+      type: type
     });
     
     if (!data || data.error) {
@@ -126,9 +129,12 @@ export const getSongstatsId = async (spotifyId: string, type: 'track' | 'artist'
       return null;
     }
     
-    console.log(`Songstats ID search response:`, data);
+    console.log(`Songstats ID mapping response:`, data);
     
-    if (!data.id) {
+    // Extract ID based on the response structure in the documentation
+    const songstatsId = data.songstats_id;
+    
+    if (!songstatsId) {
       console.error(`Songstats ID not found for Spotify ${type} ID ${spotifyId}`);
       toast.error(`Could not find Songstats ID for the Spotify ${type}`, {
         description: "The API may not recognize this Spotify ID or the API structure may have changed"
@@ -136,8 +142,8 @@ export const getSongstatsId = async (spotifyId: string, type: 'track' | 'artist'
       return null;
     }
     
-    console.log(`Songstats ID for Spotify ${type} ID ${spotifyId}:`, data.id);
-    return data.id;
+    console.log(`Songstats ID for Spotify ${type} ID ${spotifyId}:`, songstatsId);
+    return songstatsId;
   } catch (error) {
     console.error('Error getting Songstats ID:', error);
     return null;
