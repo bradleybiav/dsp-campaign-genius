@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,15 +10,20 @@ import { validateSpotifyUrl } from './campaign-form/util/validationUtils';
 import { Button } from './ui/button';
 import { Beaker } from 'lucide-react';
 
-// Test data for quick population - now with ISRCs
+// Test data for quick population - now with real ISRCs from the image
 const TEST_DATA = {
-  name: "Test Campaign " + new Date().toLocaleString(),
+  name: "ISRCs Campaign " + new Date().toLocaleString(),
   references: [
-    "USIR20400274", // Black Eyed Peas - Let's Get It Started
-    "USCJY1431238", // Taylor Swift - Shake It Off
-    "GBBKS1500214", // Adele - Hello
-    "USQX91300108", // Daft Punk - Get Lucky
-    "https://open.spotify.com/track/2Fxmhks0bxGSBdJ92vM42m"
+    "QZSPN2529568", // Covex
+    "QT47L2500001", // SIDEPIECE & Barnacle Boi
+    "QM24S2500595", // Zen Freeman
+    "QT3F42426045", // Lumia Nocito
+    "GBEWY2100216", // ASHRR - 20/20 Vision
+    "QM4TX2517190", // WhoMadeWho
+    "QZS642541674", // STRAWBRY
+    "QM4TX2517420", // Notre Dame
+    "USZ4V2500091", // Malóne - Get Me There
+    "USUS12500114"  // Amal Nemer
   ],
   verticals: ["dsp", "radio", "dj", "press"]
 };

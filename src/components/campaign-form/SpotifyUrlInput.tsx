@@ -15,14 +15,16 @@ interface SpotifyUrlExample {
   url: string;
 }
 
-// Example Spotify URLs for testing - moved to a separate constant for reusability
+// Example Spotify URLs and ISRCs for testing
 export const EXAMPLE_SPOTIFY_URLS: SpotifyUrlExample[] = [
   { type: 'Track', name: 'Bad Guy - Billie Eilish', url: 'https://open.spotify.com/track/2Fxmhks0bxGSBdJ92vM42m' },
-  { type: 'Track', name: 'Blinding Lights - The Weeknd', url: 'https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b' },
   { type: 'Artist', name: 'Dua Lipa', url: 'https://open.spotify.com/artist/6M2wZ9GZgrQXHCFfjv46we' },
-  { type: 'Album', name: 'Fine Line - Harry Styles', url: 'https://open.spotify.com/album/7xV2TzoaVc0ycW7fwBwAml' },
-  { type: 'Track', name: 'Heat Waves - Glass Animals', url: 'https://open.spotify.com/track/02MWAaffLxlfxAUY7c5dvx' },
-  { type: 'Artist', name: 'Taylor Swift', url: 'https://open.spotify.com/artist/06HL4z0CvFAxyc27GXpf02' }
+  { type: 'ISRC', name: 'Covex - What U Need', url: 'QZSPN2529568' },
+  { type: 'ISRC', name: 'SIDEPIECE & Barnacle Boi', url: 'QT47L2500001' },
+  { type: 'ISRC', name: 'Zen Freeman', url: 'QM24S2500595' },
+  { type: 'ISRC', name: 'Lumia - Paris (Ami)', url: 'QT3F42426045' },
+  { type: 'ISRC', name: 'ASHRR - 20/20 Vision', url: 'GBEWY2100216' },
+  { type: 'ISRC', name: 'WhoMadeWho', url: 'QM4TX2517190' }
 ];
 
 interface SpotifyUrlInputProps {
