@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { 
   PlaylistResult, 
@@ -50,11 +51,12 @@ export const saveResults = async (
       const radioResultsData = results.radioResults.map(result => ({
         campaign_id: campaignId,
         station: result.station,
-        show: result.show,
-        dj: result.dj,
+        show: result.show || null, // Make sure it can be null
+        dj: result.dj || null, // Make sure it can be null
         country: result.country,
         last_spin: result.lastSpin,
-        airplay_link: result.airplayLink,
+        airplay_link: result.airplayLink || null, // Make sure it can be null
+        plays_count: result.playsCount || null, // Add plays_count field
         matched_inputs: result.matchedInputs,
         vertical: 'radio'
       }));
