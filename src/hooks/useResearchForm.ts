@@ -102,7 +102,7 @@ export const useResearchForm = () => {
       setResults(researchResults);
       setShowResults(true);
       
-      // Save campaign to Supabase
+      // Save campaign to Supabase - this uses the refactored function
       const campaignId = await saveCampaign(
         {
           name: formData.campaignName,
