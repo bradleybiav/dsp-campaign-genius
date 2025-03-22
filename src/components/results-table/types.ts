@@ -13,11 +13,12 @@ export interface PlaylistResult {
 export interface RadioResult {
   id: string;
   station: string;
-  show: string;
-  dj: string;
+  show?: string;
+  dj?: string;
   country: string;
   lastSpin: string;
-  airplayLink: string;
+  airplayLink?: string;
+  playsCount?: number; // Add playsCount as an optional property
   matchedInputs: number[];
   vertical: 'radio';
 }

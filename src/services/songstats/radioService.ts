@@ -1,3 +1,4 @@
+
 import { RadioResult } from '@/components/ResultsTable';
 import { NormalizedInput } from '@/utils/apiUtils';
 import { callSongstatsApi, getISRCFromSpotifyTrack } from './apiClient';
@@ -90,8 +91,10 @@ export const getRadioPlays = async (
               existingStation.matchedInputs.push(input.inputIndex);
             }
             
-            // Update the play count and last spin date if newer
-            existingStation.playsCount = (existingStation.playsCount || 0) + 1;
+            // Update the play count if it exists
+            if (existingStation.playsCount !== undefined) {
+              existingStation.playsCount += 1;
+            }
             
             if (play.date && (!existingStation.lastSpin || play.date > existingStation.lastSpin)) {
               existingStation.lastSpin = play.date;
