@@ -2,6 +2,7 @@
 import { toast } from 'sonner';
 import { generateMockResults } from '@/utils/mockDataGenerator';
 import { ResearchResults } from './types';
+import { PlaylistResult, RadioResult, DjResult, PressResult } from '@/components/results-table/types';
 
 export function generateMockResearchResults(
   referenceInputs: string[],
@@ -14,9 +15,9 @@ export function generateMockResearchResults(
   const mockResults = generateMockResults(referenceInputs, selectedVerticals);
   
   return {
-    dspResults: mockResults.filter(r => r.vertical === 'dsp'),
-    radioResults: mockResults.filter(r => r.vertical === 'radio') as any,
-    djResults: mockResults.filter(r => r.vertical === 'dj') as any,
-    pressResults: mockResults.filter(r => r.vertical === 'press') as any
+    dspResults: mockResults.filter((r): r is PlaylistResult => r.vertical === 'dsp'),
+    radioResults: mockResults.filter((r): r is RadioResult => r.vertical === 'radio'),
+    djResults: mockResults.filter((r): r is DjResult => r.vertical === 'dj'),
+    pressResults: mockResults.filter((r): r is PressResult => r.vertical === 'press')
   };
 }

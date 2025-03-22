@@ -1,9 +1,9 @@
 
-import { PlaylistResult } from '@/components/ResultsTable';
+import { PlaylistResult, RadioResult, DjResult, PressResult } from '@/components/results-table/types';
 
 // Mock data for placeholder results
-export const generateMockResults = (referenceInputs: string[], selectedVerticals: string[]): PlaylistResult[] => {
-  const mockPlaylists: PlaylistResult[] = [
+export const generateMockResults = (referenceInputs: string[], selectedVerticals: string[]): Array<PlaylistResult | RadioResult | DjResult | PressResult> => {
+  const mockResults: Array<PlaylistResult | RadioResult | DjResult | PressResult> = [
     {
       id: '1',
       playlistName: 'Discover Weekly',
@@ -36,12 +36,13 @@ export const generateMockResults = (referenceInputs: string[], selectedVerticals
     },
     {
       id: '4',
-      playlistName: 'Alternative Rock Radio',
-      curatorName: 'KEXP',
-      followerCount: 124587,
-      lastUpdated: '2023-04-20T12:00:00Z',
+      station: 'KEXP',
+      show: 'Alternative Rock Radio',
+      dj: 'DJ Rockstar',
+      country: 'USA',
+      lastSpin: '2023-04-20T12:00:00Z',
       matchedInputs: [2],
-      playlistUrl: 'https://open.spotify.com/playlist/37i9dQZF1DWUVpAXiEPK8P',
+      airplayLink: 'https://example.com/kexp/show/12345',
       vertical: 'radio',
     },
     {
@@ -56,12 +57,12 @@ export const generateMockResults = (referenceInputs: string[], selectedVerticals
     },
     {
       id: '6',
-      playlistName: 'DJ Mix - Club Essentials',
-      curatorName: 'DJ TrendSetter',
-      followerCount: 75487,
-      lastUpdated: '2023-05-10T12:00:00Z',
+      dj: 'DJ TrendSetter',
+      event: 'Club Essentials',
+      location: 'Berlin, Germany',
+      date: '2023-05-10T12:00:00Z',
+      tracklistUrl: 'https://example.com/dj-trendsetter/events/club-essentials',
       matchedInputs: [1, 3],
-      playlistUrl: 'https://open.spotify.com/playlist/37i9dQZF1DX4JAvHpjipBk',
       vertical: 'dj',
     },
     {
@@ -76,51 +77,52 @@ export const generateMockResults = (referenceInputs: string[], selectedVerticals
     },
     {
       id: '8',
-      playlistName: 'NPR Music Discoveries',
-      curatorName: 'NPR',
-      followerCount: 347890,
-      lastUpdated: '2023-06-12T12:00:00Z',
+      outlet: 'NPR',
+      writer: 'Music Journalist',
+      articleTitle: 'NPR Music Discoveries',
+      date: '2023-06-12T12:00:00Z', 
+      link: 'https://example.com/npr/articles/music-discoveries',
       matchedInputs: [0, 2],
-      playlistUrl: 'https://open.spotify.com/playlist/37i9dQZF1DX2L6XfQRG0Z1',
       vertical: 'press',
     },
     {
       id: '9',
-      playlistName: 'DJ Weekend Warmup',
-      curatorName: 'DJ Beatmaster',
-      followerCount: 128954,
-      lastUpdated: '2023-06-16T12:00:00Z',
+      dj: 'DJ Beatmaster',
+      event: 'Weekend Warmup',
+      location: 'Miami, USA',
+      date: '2023-06-16T12:00:00Z',
+      tracklistUrl: 'https://example.com/dj-beatmaster/events/weekend-warmup',
       matchedInputs: [1, 4],
-      playlistUrl: 'https://open.spotify.com/playlist/37i9dQZF1DX2L6XfQRG0Z1',
       vertical: 'dj',
     },
     {
       id: '10',
-      playlistName: 'Rolling Stone Essentials',
-      curatorName: 'Rolling Stone',
-      followerCount: 862145,
-      lastUpdated: '2023-06-10T12:00:00Z',
+      outlet: 'Rolling Stone',
+      writer: 'Music Critic',
+      articleTitle: 'Rolling Stone Essentials',
+      date: '2023-06-10T12:00:00Z',
+      link: 'https://example.com/rolling-stone/articles/essentials',
       matchedInputs: [2, 3],
-      playlistUrl: 'https://open.spotify.com/playlist/37i9dQZF1DX2L6XfQRG0Z1',
       vertical: 'press',
     },
     {
       id: '11',
-      playlistName: 'KIIS FM Top 40',
-      curatorName: 'KIIS FM',
-      followerCount: 542178,
-      lastUpdated: '2023-06-17T12:00:00Z',
+      station: 'KIIS FM',
+      show: 'Top 40 Countdown',
+      dj: 'Radio Host',
+      country: 'USA',
+      lastSpin: '2023-06-17T12:00:00Z',
       matchedInputs: [0, 4],
-      playlistUrl: 'https://open.spotify.com/playlist/37i9dQZF1DX2L6XfQRG0Z1',
+      airplayLink: 'https://example.com/kiis-fm/shows/top-40',
       vertical: 'radio',
     },
   ];
 
   // Filter out results with matchedInputs that don't have content
-  return mockPlaylists.filter(playlist => {
-    const validMatches = playlist.matchedInputs.filter(
+  return mockResults.filter(result => {
+    const validMatches = result.matchedInputs.filter(
       idx => idx < referenceInputs.length && referenceInputs[idx].trim() !== ''
     );
-    return validMatches.length > 0;
+    return validMatches.length > 0 && selectedVerticals.includes(result.vertical);
   });
 };
