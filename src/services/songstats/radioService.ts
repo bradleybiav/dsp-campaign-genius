@@ -1,4 +1,3 @@
-
 import { NormalizedInput } from '@/utils/apiUtils';
 import { callSongstatsApi, getISRCFromSpotifyTrack } from './apiClient';
 import { toast } from 'sonner';
@@ -82,11 +81,11 @@ export const getRadioPlays = async (
           } else {
             // Otherwise, create a new result
             const result: RadioResult = {
-              id: play.id || `radio-${radioKey}`,
-              station: play.station,
+              id: play.id || `radio-${radioKey}-${Date.now()}`,
+              station: play.station || 'Unknown Station',
               show: play.show || '',
               dj: play.dj || '',
-              country: play.country || '',
+              country: play.country || 'Unknown',
               lastSpin: play.last_spin || play.played_at || new Date().toISOString(),
               matchedInputs: [input.inputIndex],
               airplayLink: play.url || '',
@@ -162,11 +161,11 @@ export const getRadioPlays = async (
         } else {
           // Otherwise, create a new result
           const result: RadioResult = {
-            id: play.id || `radio-${radioKey}`,
-            station: play.station,
+            id: play.id || `radio-${radioKey}-${Date.now()}`,
+            station: play.station || 'Unknown Station',
             show: play.show || '',
             dj: play.dj || '',
-            country: play.country || '',
+            country: play.country || 'Unknown',
             lastSpin: play.last_spin || play.played_at || new Date().toISOString(),
             matchedInputs: [input.inputIndex],
             airplayLink: play.url || '',

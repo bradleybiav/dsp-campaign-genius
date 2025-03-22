@@ -57,10 +57,10 @@ const ResultsTableContent: React.FC<ResultsTableContentProps> = ({ results, load
           } else if ('station' in result) {
             // RadioResult
             name = result.station;
-            creator = result.dj;
-            metric = result.country;
-            date = format(parseISO(result.lastSpin), 'MMM d, yyyy');
-            link = result.airplayLink;
+            creator = result.dj || result.show || 'Unknown DJ';
+            metric = result.country || 'Unknown';
+            date = result.lastSpin ? format(parseISO(result.lastSpin), 'MMM d, yyyy') : 'Unknown';
+            link = result.airplayLink || '#';
           } else if ('event' in result) {
             // DjResult
             name = result.event;
