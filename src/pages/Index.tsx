@@ -21,8 +21,24 @@ const Index = () => {
     followerThreshold,
     setFollowerThreshold,
     selectedFilterVerticals,
-    setSelectedFilterVerticals
+    setSelectedFilterVerticals,
+    applyFilters
   } = useResultsFilter(['dsp']);
+  
+  // Apply filters to all result types
+  const filteredResults = showResults 
+    ? applyFilters(
+        results.dspResults, 
+        results.radioResults, 
+        results.djResults, 
+        results.pressResults
+      )
+    : {
+        dspResults: [],
+        radioResults: [],
+        djResults: [],
+        pressResults: []
+      };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -41,7 +57,12 @@ const Index = () => {
           
           {(loading || showResults) && (
             <ResultsSection
-              results={results}
+              results={{
+                dsp: filteredResults.dspResults,
+                radio: filteredResults.radioResults,
+                dj: filteredResults.djResults,
+                press: filteredResults.pressResults
+              }}
               loading={loading}
               filterRecent={filterRecent}
               onFilterRecentChange={setFilterRecent}
