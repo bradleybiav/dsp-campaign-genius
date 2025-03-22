@@ -35,6 +35,7 @@ serve(async (req) => {
           headers: {
             Authorization: `Bearer ${apiKey}`,
             "Content-Type": "application/json",
+            "Accept": "application/json",
           },
         });
         
@@ -70,6 +71,12 @@ serve(async (req) => {
       }
     }
 
+    // Make sure we set proper headers for CORS and content type
+    const headers = { 
+      ...corsHeaders, 
+      "Content-Type": "application/json" 
+    };
+
     return new Response(
       JSON.stringify({ 
         configured: !!apiKey,
@@ -80,12 +87,7 @@ serve(async (req) => {
         apiKeyLength: apiKey ? apiKey.length : 0,
         validationResult
       }),
-      { 
-        headers: { 
-          ...corsHeaders, 
-          "Content-Type": "application/json" 
-        } 
-      }
+      { headers }
     )
   } catch (error) {
     console.error("Detailed error checking Songstats API key:", {

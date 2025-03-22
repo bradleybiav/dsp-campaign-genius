@@ -7,6 +7,7 @@ import { getDjPlacements } from '@/services/tracklistsService';
 import { getPressResults } from '@/services/pressService';
 import type { ResearchResults } from './types';
 import { callSongstatsApi } from '@/services/songstats/apiClient';
+import { supabase } from '@/integrations/supabase/client';
 
 // Consistent error handling function
 const handleApiError = (service: string, error: any) => {
@@ -180,26 +181,14 @@ export async function checkAPIConfiguration(): Promise<boolean> {
   try {
     console.log('Checking Songstats API configuration...');
     
-    // First check if the API key is configured
-    const apiKeyCheck = await fetch('/api/check-songstats-key');
+    // Call the Songstats check key edge function directly using Supabase client
+    // instead of using fetch to a non-existent /api route
+    const { data: apiKeyStatus, error } = await supabase.functions.invoke('check-songstats-key');
     
-    if (!apiKeyCheck.ok) {
-      console.error('API key check failed with status:', apiKeyCheck.status);
-      return false;
-    }
-    
-    // Ensure we're actually getting JSON back
-    const responseText = await apiKeyCheck.text();
-    let apiKeyStatus;
-    
-    try {
-      apiKeyStatus = JSON.parse(responseText);
-    } catch (e) {
-      console.error('Failed to parse API key check response as JSON:', e);
-      console.error('Raw response:', responseText.substring(0, 200));
-      
-      toast.error('Invalid response from API key check endpoint', {
-        description: 'The check-songstats-key Edge Function is not returning valid JSON'
+    if (error) {
+      console.error('API key check failed:', error);
+      toast.error('Failed to check Songstats API key', {
+        description: error.message || 'Error connecting to Edge Function'
       });
       return false;
     }
