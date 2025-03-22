@@ -26,7 +26,12 @@ export interface PlaylistResult {
 }
 
 interface ResultsTableProps {
-  results: PlaylistResult[];
+  results: {
+    dsp: PlaylistResult[];
+    radio: PlaylistResult[];
+    dj: PlaylistResult[];
+    press: PlaylistResult[];
+  };
   filterRecent: boolean;
   followerThreshold: number;
   selectedVerticals: string[];
@@ -67,8 +72,16 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
   selectedVerticals,
   loading = false,
 }) => {
-  // Apply filters
-  const filteredResults = results.filter(result => {
+  // Get all results in a flat array for the "All" tab
+  const allResults = [
+    ...results.dsp,
+    ...results.radio,
+    ...results.dj,
+    ...results.press
+  ];
+  
+  // Apply filters to all results
+  const filteredAllResults = allResults.filter(result => {
     if (filterRecent) {
       const thirtyDaysAgo = subDays(new Date(), 30);
       if (!isAfter(parseISO(result.lastUpdated), thirtyDaysAgo)) {
@@ -87,21 +100,80 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
     return true;
   });
 
+  // Apply filters to each vertical
+  const filteredResults = {
+    dsp: results.dsp.filter(result => {
+      if (filterRecent) {
+        const thirtyDaysAgo = subDays(new Date(), 30);
+        if (!isAfter(parseISO(result.lastUpdated), thirtyDaysAgo)) {
+          return false;
+        }
+      }
+      if (followerThreshold > 0 && result.followerCount < followerThreshold) {
+        return false;
+      }
+      if (selectedVerticals.length > 0 && !selectedVerticals.includes(result.vertical)) {
+        return false;
+      }
+      return true;
+    }),
+    radio: results.radio.filter(result => {
+      if (filterRecent) {
+        const thirtyDaysAgo = subDays(new Date(), 30);
+        if (!isAfter(parseISO(result.lastUpdated), thirtyDaysAgo)) {
+          return false;
+        }
+      }
+      if (followerThreshold > 0 && result.followerCount < followerThreshold) {
+        return false;
+      }
+      if (selectedVerticals.length > 0 && !selectedVerticals.includes(result.vertical)) {
+        return false;
+      }
+      return true;
+    }),
+    dj: results.dj.filter(result => {
+      if (filterRecent) {
+        const thirtyDaysAgo = subDays(new Date(), 30);
+        if (!isAfter(parseISO(result.lastUpdated), thirtyDaysAgo)) {
+          return false;
+        }
+      }
+      if (followerThreshold > 0 && result.followerCount < followerThreshold) {
+        return false;
+      }
+      if (selectedVerticals.length > 0 && !selectedVerticals.includes(result.vertical)) {
+        return false;
+      }
+      return true;
+    }),
+    press: results.press.filter(result => {
+      if (filterRecent) {
+        const thirtyDaysAgo = subDays(new Date(), 30);
+        if (!isAfter(parseISO(result.lastUpdated), thirtyDaysAgo)) {
+          return false;
+        }
+      }
+      if (followerThreshold > 0 && result.followerCount < followerThreshold) {
+        return false;
+      }
+      if (selectedVerticals.length > 0 && !selectedVerticals.includes(result.vertical)) {
+        return false;
+      }
+      return true;
+    })
+  };
+  
   // Group results by vertical for tabs
   const verticals = ['dsp', 'radio', 'dj', 'press'];
-  const resultsByVertical: Record<string, PlaylistResult[]> = {};
   
-  verticals.forEach(vertical => {
-    resultsByVertical[vertical] = filteredResults.filter(result => result.vertical === vertical);
-  });
-
   const activeVerticals = verticals.filter(vertical => 
     selectedVerticals.length === 0 || selectedVerticals.includes(vertical)
   );
   
   // Set default active tab to the first non-empty vertical
   const firstNonEmptyVertical = activeVerticals.find(vertical => 
-    resultsByVertical[vertical].length > 0
+    filteredResults[vertical as keyof typeof filteredResults].length > 0
   ) || 'all';
 
   if (loading) {
@@ -185,7 +257,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
   };
 
   // If there are no results across any vertical
-  if (filteredResults.length === 0) {
+  if (filteredAllResults.length === 0) {
     return (
       <div className="mt-4 relative overflow-hidden glass-panel subtle-shadow rounded-xl animate-fade-in p-8">
         <div className="flex flex-col items-center justify-center h-32 space-y-2">
@@ -206,30 +278,30 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
             value="all" 
             className={`flex-1 rounded-none ${getTabColor('all')}`}
           >
-            All Results ({filteredResults.length})
+            All Results ({filteredAllResults.length})
           </TabsTrigger>
           {activeVerticals.map(vertical => (
             <TabsTrigger 
               key={vertical}
               value={vertical}
               className={`flex-1 rounded-none ${getTabColor(vertical)}`}
-              disabled={resultsByVertical[vertical].length === 0}
+              disabled={filteredResults[vertical as keyof typeof filteredResults].length === 0}
             >
               <div className="flex items-center gap-2">
                 <Badge className={`${getVerticalColor(vertical)} w-2 h-2 p-0 rounded-full`} />
-                {vertical.toUpperCase()} ({resultsByVertical[vertical].length})
+                {vertical.toUpperCase()} ({filteredResults[vertical as keyof typeof filteredResults].length})
               </div>
             </TabsTrigger>
           ))}
         </TabsList>
         
         <TabsContent value="all" className="pt-0 mt-0">
-          {renderResultsTable(filteredResults)}
+          {renderResultsTable(filteredAllResults)}
         </TabsContent>
         
         {activeVerticals.map(vertical => (
           <TabsContent key={vertical} value={vertical} className="pt-0 mt-0">
-            {renderResultsTable(resultsByVertical[vertical])}
+            {renderResultsTable(filteredResults[vertical as keyof typeof filteredResults])}
           </TabsContent>
         ))}
       </Tabs>

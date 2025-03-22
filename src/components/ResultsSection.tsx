@@ -4,7 +4,12 @@ import FilterSection from '@/components/FilterSection';
 import ResultsTable, { PlaylistResult } from '@/components/ResultsTable';
 
 interface ResultsSectionProps {
-  results: PlaylistResult[];
+  results: {
+    dsp: PlaylistResult[];
+    radio: PlaylistResult[];
+    dj: PlaylistResult[];
+    press: PlaylistResult[];
+  };
   loading: boolean;
   filterRecent: boolean;
   onFilterRecentChange: (checked: boolean) => void;
@@ -26,12 +31,15 @@ const ResultsSection: React.FC<ResultsSectionProps> = ({
   onSelectedVerticalsChange,
   resultsRef
 }) => {
+  // Calculate total results count
+  const totalResults = results.dsp.length + results.radio.length + results.dj.length + results.press.length;
+
   return (
     <section ref={resultsRef} className="animate-slide-in">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-medium">Playlist Results</h2>
         <span className="text-sm text-muted-foreground">
-          {!loading && `Showing ${results.length} results`}
+          {!loading && `Showing ${totalResults} results`}
         </span>
       </div>
       
