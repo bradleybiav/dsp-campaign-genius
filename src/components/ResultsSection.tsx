@@ -37,7 +37,11 @@ const ResultsSection: React.FC<ResultsSectionProps> = ({
   usingMockData = false
 }) => {
   // Calculate total results count
-  const totalResults = results.dsp.length + results.radio.length + results.dj.length + results.press.length;
+  const totalResults = 
+    results.dsp.length + 
+    results.radio.length + 
+    results.dj.length + 
+    results.press.length;
 
   return (
     <section ref={resultsRef} className="animate-slide-in">

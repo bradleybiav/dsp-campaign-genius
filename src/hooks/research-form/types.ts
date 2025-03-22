@@ -1,5 +1,5 @@
 
-import { PlaylistResult, RadioResult, DjResult, PressResult } from '@/components/results-table/types';
+import type { PlaylistResult, RadioResult, DjResult, PressResult } from '@/components/results-table/types';
 
 export interface FormData {
   campaignName: string;

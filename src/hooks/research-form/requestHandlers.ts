@@ -2,11 +2,26 @@
 import { toast } from 'sonner';
 import { NormalizedInput } from '@/utils/apiUtils';
 import { getPlaylistPlacements } from '@/services/songstats';
-import { getRadioPlays, RadioResult } from '@/services/songstats';
-import { getDjPlacements, DjResult } from '@/services/tracklistsService';
-import { getPressResults, PressResult } from '@/services/pressService';
-import { ResearchResults } from './types';
-import { PlaylistResult } from '@/components/ResultsTable';
+import { getRadioPlays } from '@/services/songstats';
+import { getDjPlacements } from '@/services/tracklistsService';
+import { getPressResults } from '@/services/pressService';
+import type { ResearchResults } from './types';
+
+// Consistent error handling function
+const handleApiError = (service: string, error: any) => {
+  console.error(`Error in ${service} service:`, error);
+  const errorMessage = error?.message || 'Unknown error occurred';
+  
+  // Log detailed error information for debugging
+  if (error?.response) {
+    console.error(`${service} API response:`, {
+      status: error.response.status,
+      data: error.response.data
+    });
+  }
+  
+  return errorMessage;
+};
 
 export async function executeResearch(
   normalizedInputs: NormalizedInput[],
@@ -31,8 +46,10 @@ export async function executeResearch(
         console.log('DSP results:', results.length);
       })
       .catch(error => {
-        console.error('Error fetching playlist placements:', error);
-        toast.error('Failed to fetch playlist data');
+        const errorMsg = handleApiError('Playlist', error);
+        toast.error('Failed to fetch playlist data', { 
+          description: errorMsg.substring(0, 100) 
+        });
       });
     researchPromises.push(dspPromise);
   }
@@ -45,8 +62,10 @@ export async function executeResearch(
         console.log('Radio results:', results.length);
       })
       .catch(error => {
-        console.error('Error fetching radio plays:', error);
-        toast.error('Failed to fetch radio data');
+        const errorMsg = handleApiError('Radio', error);
+        toast.error('Failed to fetch radio data', {
+          description: errorMsg.substring(0, 100)
+        });
       });
     researchPromises.push(radioPromise);
   }
@@ -59,8 +78,10 @@ export async function executeResearch(
         console.log('DJ results:', results.length);
       })
       .catch(error => {
-        console.error('Error fetching DJ placements:', error);
-        toast.error('Failed to fetch DJ data');
+        const errorMsg = handleApiError('DJ', error);
+        toast.error('Failed to fetch DJ data', {
+          description: errorMsg.substring(0, 100)
+        });
       });
     researchPromises.push(djPromise);
   }
@@ -73,8 +94,10 @@ export async function executeResearch(
         console.log('Press results:', results.length);
       })
       .catch(error => {
-        console.error('Error fetching press results:', error);
-        toast.error('Failed to fetch press data');
+        const errorMsg = handleApiError('Press', error);
+        toast.error('Failed to fetch press data', {
+          description: errorMsg.substring(0, 100)
+        });
       });
     researchPromises.push(pressPromise);
   }
@@ -87,8 +110,16 @@ export async function executeResearch(
 
 export async function checkAPIConfiguration(): Promise<boolean> {
   try {
+    console.log('Checking Songstats API configuration...');
     const apiKeyCheck = await fetch('/api/check-songstats-key');
+    
+    if (!apiKeyCheck.ok) {
+      console.error('API key check failed with status:', apiKeyCheck.status);
+      return false;
+    }
+    
     const apiKeyStatus = await apiKeyCheck.json();
+    console.log('API key configuration status:', apiKeyStatus.configured);
     
     return apiKeyStatus.configured;
   } catch (error) {

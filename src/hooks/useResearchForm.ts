@@ -1,3 +1,4 @@
 
 // Re-export from modular structure
-export { useResearchForm, FormData, ResearchResults } from './research-form';
+export { useResearchForm } from './research-form';
+export type { FormData, ResearchResults } from './research-form';

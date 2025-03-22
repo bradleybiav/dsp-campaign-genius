@@ -20,7 +20,11 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
     followerThreshold,
     selectedVerticals
   });
-  
+
+  if (loading) {
+    return <ResultsTableSkeleton />;
+  }
+
   // Group results by vertical for tabs
   const verticals = ['dsp', 'radio', 'dj', 'press'];
   
@@ -32,13 +36,18 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
   const firstNonEmptyVertical = activeVerticals.find(vertical => 
     filteredResults[vertical as keyof typeof filteredResults].length > 0
   ) || 'all';
-
-  if (loading) {
-    return <ResultsTableSkeleton />;
-  }
+  
+  // Track result counts for display
+  const resultCounts = {
+    all: filteredAllResults.length,
+    dsp: filteredResults.dsp.length,
+    radio: filteredResults.radio.length,
+    dj: filteredResults.dj.length,
+    press: filteredResults.press.length
+  };
 
   // If there are no results across any vertical
-  if (filteredAllResults.length === 0) {
+  if (resultCounts.all === 0) {
     return (
       <div className="mt-4 relative overflow-hidden glass-panel subtle-shadow rounded-xl animate-fade-in p-8">
         <div className="flex flex-col items-center justify-center h-32 space-y-2">
@@ -59,18 +68,19 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
             value="all" 
             className={`flex-1 rounded-none ${getTabColor('all')}`}
           >
-            All Results ({filteredAllResults.length})
+            All Results ({resultCounts.all})
           </TabsTrigger>
+          
           {activeVerticals.map(vertical => (
             <TabsTrigger 
               key={vertical}
               value={vertical}
               className={`flex-1 rounded-none ${getTabColor(vertical)}`}
-              disabled={filteredResults[vertical as keyof typeof filteredResults].length === 0}
+              disabled={resultCounts[vertical as keyof typeof resultCounts] === 0}
             >
               <div className="flex items-center gap-2">
                 <Badge className={`${getVerticalColor(vertical)} w-2 h-2 p-0 rounded-full`} />
-                {vertical.toUpperCase()} ({filteredResults[vertical as keyof typeof filteredResults].length})
+                {vertical.toUpperCase()} ({resultCounts[vertical as keyof typeof resultCounts]})
               </div>
             </TabsTrigger>
           ))}

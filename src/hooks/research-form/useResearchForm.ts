@@ -3,10 +3,9 @@ import { useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { normalizeInputs } from '@/utils/apiUtils';
 import { saveCampaign } from '@/services/supabaseService';
-import { FormData, ResearchResults } from './types';
-import { executeResearch } from './requestHandlers';
+import type { FormData, ResearchResults } from './types';
+import { executeResearch, checkAPIConfiguration } from './requestHandlers';
 import { generateMockResearchResults } from './mockDataHandler';
-import { checkAPIConfiguration } from './requestHandlers';
 
 export function useResearchForm() {
   const [showResults, setShowResults] = useState(false);
@@ -81,23 +80,30 @@ export function useResearchForm() {
       setShowResults(true);
       
       // Save campaign to Supabase
-      const campaignId = await saveCampaign(
-        {
-          name: formData.campaignName,
-          referenceInputs: formData.referenceInputs,
-          selectedVerticals: formData.selectedVerticals
-        },
-        normalized,
-        researchResults
-      );
-      
-      if (campaignId) {
-        setSavedCampaignId(campaignId);
-        toast.success(usingMockData 
-          ? 'Campaign saved with demo data' 
-          : 'Research completed and saved');
-      } else {
-        toast.error('Failed to save campaign to database');
+      try {
+        const campaignId = await saveCampaign(
+          {
+            name: formData.campaignName,
+            referenceInputs: formData.referenceInputs,
+            selectedVerticals: formData.selectedVerticals
+          },
+          normalized,
+          researchResults
+        );
+        
+        if (campaignId) {
+          setSavedCampaignId(campaignId);
+          toast.success(usingMockData 
+            ? 'Campaign saved with demo data' 
+            : 'Research completed and saved');
+        } else {
+          toast.error('Failed to save campaign to database');
+        }
+      } catch (saveError) {
+        console.error('Error saving campaign:', saveError);
+        toast.error('Failed to save campaign', {
+          description: saveError.message || 'Database error occurred'
+        });
       }
       
       // Scroll to results
