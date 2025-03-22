@@ -41,10 +41,11 @@ export const saveResults = async (
               if (error) console.error('Error saving DSP results:', error);
               resolve();
             })
-            .catch(error => {
+            .catch = (error: any) => {
               console.error('Error saving DSP results:', error);
               resolve();
-            });
+              return this;
+            };
         })
       );
     }
@@ -68,10 +69,6 @@ export const saveResults = async (
           supabase.from('radio_results').insert(radioResultsData)
             .then(({ error }) => {
               if (error) console.error('Error saving Radio results:', error);
-              resolve();
-            })
-            .catch(error => {
-              console.error('Error saving Radio results:', error);
               resolve();
             });
         })
@@ -97,10 +94,6 @@ export const saveResults = async (
             .then(({ error }) => {
               if (error) console.error('Error saving DJ results:', error);
               resolve();
-            })
-            .catch(error => {
-              console.error('Error saving DJ results:', error);
-              resolve();
             });
         })
       );
@@ -124,10 +117,6 @@ export const saveResults = async (
           supabase.from('press_results').insert(pressResultsData)
             .then(({ error }) => {
               if (error) console.error('Error saving Press results:', error);
-              resolve();
-            })
-            .catch(error => {
-              console.error('Error saving Press results:', error);
               resolve();
             });
         })
