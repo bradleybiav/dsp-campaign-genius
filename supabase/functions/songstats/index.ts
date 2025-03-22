@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders } from "../_shared/cors.ts"
 
-// Default base URL for Songstats Enterprise API
+// Default base URLs for Songstats APIs
 const ENTERPRISE_API_URL = 'https://api.songstats.com/enterprise/v1';
 const RADIOSTATS_API_URL = 'https://api.songstats.com/radiostats/v1';
 
@@ -79,22 +79,16 @@ async function processApiResponse(response: Response): Promise<object> {
 /**
  * Call the Songstats API (Enterprise or RadioStats)
  */
-async function callSongstatsApi(path: string, params: any, apiKey: string): Promise<any> {
+async function callSongstatsApi(path: string, params: any, apiKey: string, isRadioApi: boolean = false): Promise<any> {
   const queryParams = new URLSearchParams(params);
   
-  // Determine which API to use based on the path or params
-  let baseUrl = ENTERPRISE_API_URL;
+  // Determine which API to use 
+  let baseUrl = isRadioApi || path.startsWith('radio/') ? RADIOSTATS_API_URL : ENTERPRISE_API_URL;
   
-  // If the path explicitly starts with 'radio/' or we're requesting radio data,
-  // use the RadioStats API
-  if (path.startsWith('radio/') || params.with_radio === "true") {
-    baseUrl = RADIOSTATS_API_URL;
-    console.log(`Using RadioStats API base URL: ${baseUrl}`);
-  } else {
-    console.log(`Using Enterprise API base URL: ${baseUrl}`);
-  }
+  // Fix path to not have 'radio/' prefix if using RadioStats API URL
+  const apiPath = (isRadioApi && path.startsWith('radio/')) ? path.substring(6) : path;
   
-  const url = `${baseUrl}/${path}?${queryParams.toString()}`;
+  const url = `${baseUrl}/${apiPath}?${queryParams.toString()}`;
   
   console.log(`Calling API: ${url}`);
   
@@ -124,8 +118,8 @@ serve(async (req) => {
   }
 
   try {
-    const { path, params } = await req.json();
-    console.log(`Request for path: ${path}, params:`, params);
+    const { path, params, isRadioApi } = await req.json();
+    console.log(`Request for path: ${path}, params:`, params, 'isRadioApi:', isRadioApi);
     
     // Get API key from environment
     const apiKey = Deno.env.get("SONGSTATS_API_KEY");
@@ -143,7 +137,7 @@ serve(async (req) => {
 
     try {
       // Call the API with the provided path and params
-      const result = await callSongstatsApi(path, params, apiKey);
+      const result = await callSongstatsApi(path, params, apiKey, isRadioApi);
       
       // Return processed data with CORS headers
       return new Response(

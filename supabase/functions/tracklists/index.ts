@@ -2,11 +2,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders } from "../_shared/cors.ts"
 
-// Default base URL for 1001Tracklists API
+// Base URL for 1001Tracklists API
 const TRACKLISTS_API_URL = 'https://api.1001tracklists.com/v1';
 
 // Maximum retries for API calls
-const MAX_RETRIES = 3;
+const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 500;
 
 /**
@@ -51,7 +51,6 @@ async function processApiResponse(response: Response): Promise<object> {
       if (!response.ok) {
         console.log(`API responded with status ${response.status}: ${text.substring(0, 200)}`);
         return {
-          ...data,
           error: data.error || `1001Tracklists API responded with status ${response.status}`,
           status: response.status
         };
@@ -79,8 +78,8 @@ async function processApiResponse(response: Response): Promise<object> {
  * Call the 1001Tracklists API
  */
 async function callTracklistsApi(path: string, params: any, apiKey: string): Promise<any> {
-  const queryString = new URLSearchParams(params).toString();
-  const url = `${TRACKLISTS_API_URL}/${path}${queryString ? `?${queryString}` : ''}`;
+  const queryParams = new URLSearchParams(params);
+  const url = `${TRACKLISTS_API_URL}/${path}?${queryParams.toString()}`;
   
   console.log(`Calling 1001Tracklists API: ${url}`);
   
@@ -88,7 +87,7 @@ async function callTracklistsApi(path: string, params: any, apiKey: string): Pro
     method: "GET",
     headers: {
       "Accept": 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
+      'X-API-KEY': apiKey,
       "Content-Type": "application/json"
     }
   };
@@ -117,6 +116,7 @@ serve(async (req) => {
     
     // Validate API key
     if (!apiKey || apiKey.length < 10) {
+      // Return mock data structure if no API key
       return new Response(
         JSON.stringify({ 
           error: "API key not configured or invalid",
@@ -127,16 +127,8 @@ serve(async (req) => {
     }
 
     try {
-      // Call the 1001Tracklists API with the provided path and params
+      // Call the API with the provided path and params
       const result = await callTracklistsApi(path, params, apiKey);
-      
-      // If we got empty data with no error, return a successful empty response
-      if (Object.keys(result).length === 0) {
-        return new Response(
-          JSON.stringify({ tracklists: [] }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-        );
-      }
       
       // Return processed data with CORS headers
       return new Response(

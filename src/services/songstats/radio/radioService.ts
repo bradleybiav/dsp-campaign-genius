@@ -3,7 +3,6 @@ import { RadioResult } from '@/components/results-table/types';
 import { NormalizedInput } from '@/utils/apiUtils';
 import { callSongstatsApi, getISRCFromSpotifyTrack } from '../apiClient';
 import { processRadioData } from './radioDataProcessor';
-import { toast } from 'sonner';
 import { showServiceError } from '@/hooks/research-form/errorHandler';
 
 /**
@@ -44,11 +43,9 @@ export const getRadioPlays = async (
       
       radioApiStats.total++;
       
-      // Use the tracks/stats endpoint with the with_radio parameter
-      // This is more reliable according to the documentation
-      const response = await callSongstatsApi('tracks/stats', { 
-        isrc: isrc,
-        with_radio: "true" // Using string "true" instead of boolean true
+      // Use the direct RadioStats endpoint for radio data
+      const response = await callSongstatsApi('radio/isrc', { 
+        isrc: isrc
       });
       
       if (!response || response.error) {

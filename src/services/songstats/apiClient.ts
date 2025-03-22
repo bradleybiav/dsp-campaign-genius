@@ -19,7 +19,12 @@ export const callSongstatsApi = async (
     
     const startTime = Date.now();
     const { data, error } = await supabase.functions.invoke('songstats', {
-      body: { path, params },
+      body: { 
+        path, 
+        params,
+        // Explicitly tell the edge function if this is a RadioStats API call
+        isRadioApi: path.startsWith('radio/')
+      },
     });
     const duration = Date.now() - startTime;
     
