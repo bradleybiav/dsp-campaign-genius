@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders } from "../_shared/cors.ts"
 
-// Updated base URL according to docs: https://docs.songstats.com/
+// Base URL according to Songstats API docs
 const SONGSTATS_API_URL = 'https://api.songstats.com/api/v1';
 
 const MAX_RETRIES = 3;
@@ -14,25 +14,9 @@ const RETRY_DELAY_MS = 500;
 async function fetchWithRetry(url: string, options: RequestInit, retries = 0): Promise<Response> {
   try {
     console.log(`Making request to: ${url}`);
-    console.log(`Request headers:`, options.headers);
     
     const response = await fetch(url, options);
     console.log(`Response status: ${response.status}`);
-    
-    // For debugging, log response headers and body preview
-    const headers = Object.fromEntries([...response.headers.entries()]);
-    console.log(`Response headers:`, headers);
-    
-    // Clone response to be able to read body and still return original response
-    const clonedResponse = response.clone();
-    let bodyPreview = "";
-    try {
-      const responseText = await clonedResponse.text();
-      bodyPreview = responseText.substring(0, 500) + (responseText.length > 500 ? '...' : '');
-      console.log(`Response body preview:`, bodyPreview);
-    } catch (e) {
-      console.error(`Error reading response body:`, e);
-    }
     
     // Handle rate limiting (429) specifically
     if (response.status === 429 && retries < MAX_RETRIES) {
@@ -48,6 +32,7 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 0): P
       return fetchWithRetry(url, options, retries + 1);
     }
     
+    // For all other responses, including 404s, just return the response
     return response;
   } catch (error) {
     console.error(`Fetch error:`, error);
@@ -62,7 +47,7 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 0): P
 }
 
 /**
- * Helper function to validate API key before making requests
+ * Helper function to validate API key
  */
 function validateApiKey(apiKey: string | undefined): boolean {
   if (!apiKey) {
@@ -70,13 +55,12 @@ function validateApiKey(apiKey: string | undefined): boolean {
     return false;
   }
   
-  // Basic validation - ensure API key has a reasonable length
+  // Basic validation
   if (apiKey.length < 10) {
     console.error(`API key looks invalid (too short): length=${apiKey.length}`);
     return false;
   }
   
-  console.log(`API key validation passed: length=${apiKey.length}, first4Chars=${apiKey.substring(0, 4)}..., last4Chars=...${apiKey.substring(apiKey.length - 4)}`);
   return true;
 }
 
@@ -104,21 +88,6 @@ serve(async (req) => {
     }
 
     try {
-      // Try direct access to the API docs to verify connectivity
-      console.log("Testing direct connection to Songstats API...");
-      const testResponse = await fetch("https://api.songstats.com/", {
-        method: "GET"
-      });
-      console.log(`Direct API test response status: ${testResponse.status}`);
-      
-      let testResponseText = "";
-      try {
-        testResponseText = await testResponse.text();
-        console.log(`Direct API test response body (first 200 chars): ${testResponseText.substring(0, 200)}`);
-      } catch (e) {
-        console.error("Error reading test response:", e);
-      }
-      
       // Build the URL according to the API docs
       let apiUrl = `${SONGSTATS_API_URL}/${path}`;
       
@@ -138,54 +107,54 @@ serve(async (req) => {
         },
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage = `Songstats API responded with status ${response.status}`;
-        let errorDetails: any = errorText;
-        
-        try {
-          // Try to parse error as JSON if possible
-          errorDetails = JSON.parse(errorText);
-          console.error("Songstats API error response:", errorDetails);
-        } catch (e) {
-          // Fall back to raw error text
-          console.error("Songstats API error response (text):", errorText);
-        }
-        
-        // Provide a more detailed response with troubleshooting info
-        return new Response(
-          JSON.stringify({ 
-            error: errorMessage,
-            status: response.status,
-            details: errorDetails,
-            troubleshooting: "The Songstats API may have changed. Please check the API documentation at https://docs.songstats.com/ for the latest endpoints."
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: response.status }
-        );
-      }
-
+      // Even for error responses like 404, try to parse the response
       let responseData;
       try {
-        // First try to get the response as JSON
         const responseText = await response.text();
         try {
           responseData = JSON.parse(responseText);
         } catch (parseError) {
           console.error("Failed to parse response as JSON:", parseError);
           console.log("Response text:", responseText.substring(0, 200));
-          responseData = { text: responseText.substring(0, 300), _parseFailed: true };
+          
+          // For non-JSON responses, create a structured error response
+          responseData = { 
+            error: "Invalid response format", 
+            status: response.status,
+            text: responseText.substring(0, 300)
+          };
         }
       } catch (textError) {
         console.error("Error reading response text:", textError);
-        responseData = { error: "Failed to read response body" };
+        responseData = { 
+          error: "Failed to read response body",
+          status: response.status
+        };
       }
 
-      console.log(`Songstats API response for ${path} received successfully`);
+      // For non-200 responses, include error information but still return structured data
+      if (!response.ok) {
+        console.log(`Songstats API returned non-OK status: ${response.status}`);
+        
+        // Include the status code and appropriate error message
+        if (!responseData.error) {
+          responseData = {
+            ...responseData,
+            error: `Songstats API responded with status ${response.status}`,
+            status: response.status
+          };
+        }
+      } else {
+        console.log(`Songstats API response for ${path} received successfully`);
+      }
 
-      // Return response data
+      // Return response data with proper headers
       return new Response(
         JSON.stringify(responseData),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { 
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200 // Always return 200 to the client, with error details in the response body
+        }
       );
     } catch (apiError) {
       console.error("Error calling Songstats API:", apiError);
@@ -194,9 +163,9 @@ serve(async (req) => {
         JSON.stringify({ 
           error: "Error calling Songstats API",
           details: apiError.message,
-          troubleshooting: "The Songstats API might be unavailable or the endpoint structure may have changed. Please check the API documentation at https://docs.songstats.com/."
+          troubleshooting: "The Songstats API might be unavailable or has changed."
         }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 502 }
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }
   } catch (error) {
@@ -206,11 +175,9 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: "Error processing Songstats API request",
-        details: error.message,
-        stack: Deno.env.get("ENVIRONMENT") === "development" ? error.stack : undefined,
-        troubleshooting: "The request to the Songstats API edge function is invalid or the Songstats API may be unavailable."
+        details: error.message
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
   }
 });

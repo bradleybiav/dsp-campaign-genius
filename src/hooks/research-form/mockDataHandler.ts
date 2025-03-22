@@ -1,4 +1,3 @@
-
 import { NormalizedInput } from '@/utils/apiUtils';
 import type { ResearchResults } from './types';
 

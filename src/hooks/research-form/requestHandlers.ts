@@ -98,6 +98,10 @@ export async function executeResearch(
   // If no results, fallback to mock data
   if (!hasResults) {
     console.warn('No results found from APIs, falling back to mock data');
+    toast.info('Using demo data for research results', {
+      description: 'No live data available at this time'
+    });
+    
     const mockResearchResults = generateMockResearchResults(
       normalizedInputs,
       selectedVerticals

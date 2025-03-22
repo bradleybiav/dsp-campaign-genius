@@ -24,8 +24,7 @@ export const callSongstatsApi = async (
     const duration = Date.now() - startTime;
     
     console.log(`Songstats API call took ${duration}ms`);
-    console.log('Songstats API response data:', data);
-
+    
     if (error) {
       console.error('Error calling Songstats API:', error);
       console.error('Error details:', error.message, error.name, error.cause);
@@ -37,18 +36,19 @@ export const callSongstatsApi = async (
         return callSongstatsApi(path, params, retries + 1);
       }
       
-      // Show error toast with details if available
-      if (data?.details) {
-        toast.error(`Songstats API Error: ${data.details}`, {
-          description: `Path: ${path}`
-        });
-      } else {
-        toast.error(`Songstats API Error: ${error.message}`, {
-          description: `Path: ${path}`
-        });
+      // If API returns a 404 Not Found or similar error, we consider it a normal response for non-existing resources
+      // This helps prevent cascading errors when resources don't exist
+      if (error.message?.includes('404')) {
+        console.log(`Resource not found at ${path}, returning empty result`);
+        return null;
       }
       
-      // Log additional troubleshooting information to help diagnose the issue
+      // Show error toast with details if available
+      toast.error(`Songstats API Error: ${error.message || "Unknown error"}`, {
+        description: `Path: ${path}`
+      });
+      
+      // Log additional troubleshooting information
       console.error('Troubleshooting info:', {
         path,
         params,
@@ -58,6 +58,12 @@ export const callSongstatsApi = async (
         dataReceived: data
       });
       
+      return null;
+    }
+
+    // Handle data being null or undefined
+    if (!data) {
+      console.warn(`No data returned from Songstats API for ${path}`);
       return null;
     }
 
@@ -72,23 +78,16 @@ export const callSongstatsApi = async (
         return callSongstatsApi(path, params, retries + 1);
       }
       
-      // Show error toast with details
-      if (data.details) {
-        let detailsStr = typeof data.details === 'string' 
-          ? data.details 
-          : JSON.stringify(data.details).substring(0, 100);
-        
-        // Include troubleshooting info if available
-        if (data.troubleshooting) {
-          detailsStr += ` (${data.troubleshooting})`;
-        }
-        
-        toast.error(`Songstats API Error: ${data.error}`, {
-          description: detailsStr
-        });
-      } else {
-        toast.error(`Songstats API Error: ${data.error}`);
+      // If API returns a 404 Not Found, we consider it a normal response for non-existing resources
+      if (data.status === 404) {
+        console.log(`Resource not found at ${path}, returning empty result`);
+        return null;
       }
+      
+      // Show error toast with details
+      toast.error(`Songstats API Error: ${data.error || "Unknown error"}`, {
+        description: data.details || `Path: ${path}`
+      });
       
       return null;
     }
@@ -105,41 +104,37 @@ export const callSongstatsApi = async (
       return callSongstatsApi(path, params, retries + 1);
     }
     
-    toast.error(`Error connecting to Songstats: ${error.message}`);
+    toast.error(`Error connecting to Songstats: ${error.message || "Network error"}`);
     return null;
   }
 };
 
 /**
  * Get Songstats ID from Spotify URL
- * Updated based on Songstats API documentation
+ * Updated to gracefully handle API errors
  */
 export const getSongstatsId = async (spotifyId: string, type: 'track' | 'artist'): Promise<string | null> => {
   try {
     console.log(`Getting Songstats ID for Spotify ${type} ID: ${spotifyId}`);
     
     // Call the Edge Function to get Songstats ID
-    // Updated to match the current API structure
     const data = await callSongstatsApi('mappings/spotify', {
       id: spotifyId,
       type: type
     });
     
-    if (!data || data.error) {
-      console.error('Error getting Songstats ID:', data?.error || 'Unknown error');
+    if (!data) {
+      console.log(`No mapping data returned for Spotify ${type} ID ${spotifyId}`);
       return null;
     }
     
     console.log(`Songstats ID mapping response:`, data);
     
-    // Extract ID based on the response structure in the documentation
+    // Extract ID based on the response structure
     const songstatsId = data.songstats_id;
     
     if (!songstatsId) {
-      console.error(`Songstats ID not found for Spotify ${type} ID ${spotifyId}`);
-      toast.error(`Could not find Songstats ID for the Spotify ${type}`, {
-        description: "The API may not recognize this Spotify ID or the API structure may have changed"
-      });
+      console.log(`Songstats ID not found for Spotify ${type} ID ${spotifyId}`);
       return null;
     }
     
