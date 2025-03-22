@@ -26,6 +26,17 @@ const ResultsTableContent: React.FC<ResultsTableContentProps> = ({ results, load
     );
   }
 
+  // Helper function to safely format dates
+  const formatDate = (dateString: string | null | undefined): string => {
+    if (!dateString) return 'Unknown';
+    try {
+      return format(parseISO(dateString), 'MMM d, yyyy');
+    } catch (e) {
+      console.error('Date parsing error:', e);
+      return 'Invalid date';
+    }
+  };
+
   return (
     <Table>
       <TableHeader>
@@ -52,29 +63,29 @@ const ResultsTableContent: React.FC<ResultsTableContentProps> = ({ results, load
             name = result.playlistName;
             creator = result.curatorName;
             metric = formatNumber(result.followerCount);
-            date = format(parseISO(result.lastUpdated), 'MMM d, yyyy');
+            date = formatDate(result.lastUpdated);
             link = result.playlistUrl;
           } else if ('station' in result) {
             // RadioResult
-            name = result.station;
+            name = result.station || 'Unknown Station';
             creator = result.dj || result.show || 'Unknown DJ';
             metric = result.country || 'Unknown';
-            date = result.lastSpin ? format(parseISO(result.lastSpin), 'MMM d, yyyy') : 'Unknown';
+            date = result.lastSpin ? formatDate(result.lastSpin) : 'Unknown';
             link = result.airplayLink || '#';
           } else if ('event' in result) {
             // DjResult
-            name = result.event;
-            creator = result.dj;
-            metric = result.location;
-            date = format(parseISO(result.date), 'MMM d, yyyy');
-            link = result.tracklistUrl;
+            name = result.event || 'Unknown Event';
+            creator = result.dj || 'Unknown DJ';
+            metric = result.location || 'Unknown';
+            date = formatDate(result.date);
+            link = result.tracklistUrl || '#';
           } else {
             // PressResult
-            name = result.articleTitle;
-            creator = result.writer;
-            metric = result.outlet;
-            date = format(parseISO(result.date), 'MMM d, yyyy');
-            link = result.link;
+            name = result.articleTitle || 'Unknown Article';
+            creator = result.writer || 'Unknown Writer';
+            metric = result.outlet || 'Unknown';
+            date = formatDate(result.date);
+            link = result.link || '#';
           }
           
           return (
@@ -96,15 +107,27 @@ const ResultsTableContent: React.FC<ResultsTableContentProps> = ({ results, load
                 </div>
               </TableCell>
               <TableCell className="text-right">
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
-                  className="opacity-50 group-hover:opacity-100 transition-all-200"
-                  onClick={() => window.open(link, '_blank')}
-                >
-                  <ExternalLink className="h-4 w-4 mr-1" />
-                  Open
-                </Button>
+                {link && link !== '#' ? (
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="opacity-50 group-hover:opacity-100 transition-all-200"
+                    onClick={() => window.open(link, '_blank')}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    Open
+                  </Button>
+                ) : (
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="opacity-50 cursor-not-allowed"
+                    disabled
+                  >
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    N/A
+                  </Button>
+                )}
               </TableCell>
             </TableRow>
           );
