@@ -8,7 +8,7 @@ import ResultsTable, { PlaylistResult } from '@/components/ResultsTable';
 import { Separator } from '@/components/ui/separator';
 
 // Mock data for placeholder results
-const generateMockResults = (referenceInputs: string[]): PlaylistResult[] => {
+const generateMockResults = (referenceInputs: string[], selectedVerticals: string[]): PlaylistResult[] => {
   const mockPlaylists: PlaylistResult[] = [
     {
       id: '1',
@@ -18,6 +18,7 @@ const generateMockResults = (referenceInputs: string[]): PlaylistResult[] => {
       lastUpdated: '2023-06-15T12:00:00Z',
       matchedInputs: [0, 2],
       playlistUrl: 'https://open.spotify.com/playlist/37i9dQZEVXcDGlrEgKfUyi',
+      vertical: 'dsp',
     },
     {
       id: '2',
@@ -27,6 +28,7 @@ const generateMockResults = (referenceInputs: string[]): PlaylistResult[] => {
       lastUpdated: '2023-06-01T12:00:00Z',
       matchedInputs: [1],
       playlistUrl: 'https://open.spotify.com/playlist/37i9dQZF1DX2Nc3B70tvx0',
+      vertical: 'dsp',
     },
     {
       id: '3',
@@ -36,15 +38,17 @@ const generateMockResults = (referenceInputs: string[]): PlaylistResult[] => {
       lastUpdated: '2023-06-18T12:00:00Z',
       matchedInputs: [0, 3],
       playlistUrl: 'https://open.spotify.com/playlist/37i9dQZF1DX2pSTOxoPbx9',
+      vertical: 'dsp',
     },
     {
       id: '4',
-      playlistName: 'Alternative Mix',
-      curatorName: 'Music Explorer',
+      playlistName: 'Alternative Rock Radio',
+      curatorName: 'KEXP',
       followerCount: 124587,
       lastUpdated: '2023-04-20T12:00:00Z',
       matchedInputs: [2],
       playlistUrl: 'https://open.spotify.com/playlist/37i9dQZF1DWUVpAXiEPK8P',
+      vertical: 'radio',
     },
     {
       id: '5',
@@ -54,15 +58,17 @@ const generateMockResults = (referenceInputs: string[]): PlaylistResult[] => {
       lastUpdated: '2023-06-19T12:00:00Z',
       matchedInputs: [0, 1, 4],
       playlistUrl: 'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M',
+      vertical: 'dsp',
     },
     {
       id: '6',
-      playlistName: 'Underground Gems',
-      curatorName: 'Indie Curator',
-      followerCount: 5487,
+      playlistName: 'DJ Mix - Club Essentials',
+      curatorName: 'DJ TrendSetter',
+      followerCount: 75487,
       lastUpdated: '2023-05-10T12:00:00Z',
       matchedInputs: [1, 3],
       playlistUrl: 'https://open.spotify.com/playlist/37i9dQZF1DX4JAvHpjipBk',
+      vertical: 'dj',
     },
     {
       id: '7',
@@ -72,6 +78,47 @@ const generateMockResults = (referenceInputs: string[]): PlaylistResult[] => {
       lastUpdated: '2023-06-14T12:00:00Z',
       matchedInputs: [4],
       playlistUrl: 'https://open.spotify.com/playlist/37i9dQZF1DX2L6XfQRG0Z1',
+      vertical: 'dsp',
+    },
+    {
+      id: '8',
+      playlistName: 'NPR Music Discoveries',
+      curatorName: 'NPR',
+      followerCount: 347890,
+      lastUpdated: '2023-06-12T12:00:00Z',
+      matchedInputs: [0, 2],
+      playlistUrl: 'https://open.spotify.com/playlist/37i9dQZF1DX2L6XfQRG0Z1',
+      vertical: 'press',
+    },
+    {
+      id: '9',
+      playlistName: 'DJ Weekend Warmup',
+      curatorName: 'DJ Beatmaster',
+      followerCount: 128954,
+      lastUpdated: '2023-06-16T12:00:00Z',
+      matchedInputs: [1, 4],
+      playlistUrl: 'https://open.spotify.com/playlist/37i9dQZF1DX2L6XfQRG0Z1',
+      vertical: 'dj',
+    },
+    {
+      id: '10',
+      playlistName: 'Rolling Stone Essentials',
+      curatorName: 'Rolling Stone',
+      followerCount: 862145,
+      lastUpdated: '2023-06-10T12:00:00Z',
+      matchedInputs: [2, 3],
+      playlistUrl: 'https://open.spotify.com/playlist/37i9dQZF1DX2L6XfQRG0Z1',
+      vertical: 'press',
+    },
+    {
+      id: '11',
+      playlistName: 'KIIS FM Top 40',
+      curatorName: 'KIIS FM',
+      followerCount: 542178,
+      lastUpdated: '2023-06-17T12:00:00Z',
+      matchedInputs: [0, 4],
+      playlistUrl: 'https://open.spotify.com/playlist/37i9dQZF1DX2L6XfQRG0Z1',
+      vertical: 'radio',
     },
   ];
 
@@ -89,6 +136,7 @@ const Index = () => {
   const [results, setResults] = useState<PlaylistResult[]>([]);
   const [filterRecent, setFilterRecent] = useState(false);
   const [followerThreshold, setFollowerThreshold] = useState(0);
+  const [selectedFilterVerticals, setSelectedFilterVerticals] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -99,9 +147,12 @@ const Index = () => {
   }) => {
     setLoading(true);
     
+    // Set initial vertical filters based on form selection
+    setSelectedFilterVerticals(formData.selectedVerticals);
+    
     // Simulate API call
     setTimeout(() => {
-      const mockResults = generateMockResults(formData.referenceInputs);
+      const mockResults = generateMockResults(formData.referenceInputs, formData.selectedVerticals);
       setResults(mockResults);
       setShowResults(true);
       setLoading(false);
@@ -140,12 +191,15 @@ const Index = () => {
                 onFilterRecentChange={setFilterRecent}
                 followerThreshold={followerThreshold}
                 onFollowerThresholdChange={setFollowerThreshold}
+                selectedVerticals={selectedFilterVerticals}
+                onSelectedVerticalsChange={setSelectedFilterVerticals}
               />
               
               <ResultsTable
                 results={results}
                 filterRecent={filterRecent}
                 followerThreshold={followerThreshold}
+                selectedVerticals={selectedFilterVerticals}
                 loading={loading}
               />
             </section>
