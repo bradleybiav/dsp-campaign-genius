@@ -104,6 +104,13 @@ serve(async (req) => {
     }
 
     try {
+      // Try direct access to the API docs to verify connectivity
+      console.log("Testing direct connection to Songstats API...");
+      const testResponse = await fetch("https://api.songstats.com/", {
+        method: "GET"
+      });
+      console.log(`Direct API test response status: ${testResponse.status}`);
+      
       // Build the URL according to the API docs
       let apiUrl = `${SONGSTATS_API_URL}/${path}`;
       

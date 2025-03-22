@@ -30,7 +30,7 @@ serve(async (req) => {
         console.log("Attempting to validate API key with a test request...");
         
         // Make a simple request to the Songstats API
-        const testUrl = "https://api.songstats.com/v1";
+        const testUrl = "https://api.songstats.com/api/v1/version";
         const response = await fetch(testUrl, {
           headers: {
             Authorization: `Bearer ${apiKey}`,
