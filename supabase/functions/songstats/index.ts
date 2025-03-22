@@ -89,6 +89,9 @@ async function callSongstatsApi(path: string, params: any, apiKey: string): Prom
   // use the RadioStats API
   if (path.startsWith('radio/') || params.with_radio === "true") {
     baseUrl = RADIOSTATS_API_URL;
+    console.log(`Using RadioStats API base URL: ${baseUrl}`);
+  } else {
+    console.log(`Using Enterprise API base URL: ${baseUrl}`);
   }
   
   const url = `${baseUrl}/${path}?${queryParams.toString()}`;
@@ -98,7 +101,7 @@ async function callSongstatsApi(path: string, params: any, apiKey: string): Prom
   const requestOptions = {
     method: "GET",
     headers: {
-      'Accept-Encoding': '',
+      'Accept-Encoding': 'identity',
       "Accept": 'application/json',
       'apikey': apiKey,
       "Content-Type": "application/json"

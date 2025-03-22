@@ -3,6 +3,8 @@ import { RadioResult } from '@/components/results-table/types';
 import { NormalizedInput } from '@/utils/apiUtils';
 import { callSongstatsApi, getISRCFromSpotifyTrack } from '../apiClient';
 import { processRadioData } from './radioDataProcessor';
+import { toast } from 'sonner';
+import { showServiceError } from '@/hooks/research-form/errorHandler';
 
 /**
  * Get radio plays for a track using the RadioStats API
@@ -42,23 +44,25 @@ export const getRadioPlays = async (
       
       radioApiStats.total++;
       
-      // Call the tracks/stats endpoint with the radio parameter instead of radio/isrc
-      // This approach is more reliable as per the documentation
-      const trackData = await callSongstatsApi('tracks/stats', { 
+      // Use the tracks/stats endpoint with the with_radio parameter
+      // This is more reliable according to the documentation
+      const response = await callSongstatsApi('tracks/stats', { 
         isrc: isrc,
         with_radio: "true" // Using string "true" instead of boolean true
       });
       
-      if (!trackData || trackData.error) {
-        console.error('Error getting radio data for ISRC:', trackData?.error || 'Unknown error');
+      if (!response || response.error) {
+        console.error('Error getting radio data for ISRC:', response?.error || 'Unknown error');
         continue;
       }
       
       radioApiStats.successful++;
       
       // Process the radio data and add it to our results
-      const radioResults = processRadioData(trackData, input.inputIndex, processedStations);
-      results.push(...radioResults);
+      const radioResults = processRadioData(response, input.inputIndex, processedStations);
+      if (radioResults.length > 0) {
+        results.push(...radioResults);
+      }
     }
     
     // Log stats about the API calls
@@ -68,6 +72,7 @@ export const getRadioPlays = async (
     return results;
   } catch (error) {
     console.error('Error getting radio plays:', error);
+    showServiceError('Radio', error);
     return [];
   }
 };

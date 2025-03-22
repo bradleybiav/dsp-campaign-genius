@@ -1,6 +1,7 @@
 
 import { TracklistsApiResponse } from './types';
 import { showServiceError } from '@/hooks/research-form/errorHandler';
+import { toast } from 'sonner';
 
 // Using import.meta.env for Vite's environment variables
 const TRACKLISTS_API_KEY = import.meta.env.VITE_TRACKLISTS_API_KEY || '';
@@ -12,17 +13,17 @@ export async function searchTracklistsByTrack(isrc: string): Promise<TracklistsA
   try {
     console.log(`Searching 1001Tracklists for ISRC: ${isrc}`);
     
-    // Check if API key is set
-    if (!TRACKLISTS_API_KEY) {
-      console.log('1001Tracklists API key not configured - using mock data');
+    // Check if environment is properly configured
+    if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+      console.error('Supabase configuration missing');
       return {
         success: false,
-        error: "API key not configured"
+        error: "Supabase configuration missing"
       };
     }
     
+    // Call the Supabase Edge Function to proxy the request to 1001Tracklists API
     try {
-      // Call the Supabase Edge Function to proxy the request to 1001Tracklists API
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tracklists`, {
         method: 'POST',
         headers: {
@@ -36,18 +37,48 @@ export async function searchTracklistsByTrack(isrc: string): Promise<TracklistsA
       });
       
       if (!response.ok) {
-        const error = await response.text();
-        console.error(`Tracklists API returned ${response.status}: ${error}`);
-        throw new Error(`API returned ${response.status}: ${error}`);
+        const errorText = await response.text();
+        console.error(`1001Tracklists API returned ${response.status}: ${errorText}`);
+        
+        if (response.status === 404) {
+          toast.error('1001Tracklists search endpoint not found', {
+            description: 'Please check your Supabase edge function configuration'
+          });
+        } else {
+          toast.error(`1001Tracklists API error (${response.status})`, {
+            description: 'There was a problem connecting to the tracklists service'
+          });
+        }
+        
+        return {
+          success: false,
+          error: `API returned ${response.status}: ${errorText}`
+        };
       }
       
       const data = await response.json();
       
       if (data.error) {
         console.error('1001Tracklists API error:', data.error);
+        
+        if (data.error.includes('API key not configured')) {
+          toast.warning('1001Tracklists API key not configured', {
+            description: 'Using mock data instead'
+          });
+        }
+        
         return {
           success: false,
           error: data.error
+        };
+      }
+      
+      // Check for empty response
+      if (!data.tracklists || data.tracklists.length === 0) {
+        console.log(`No tracklists found for ISRC: ${isrc}`);
+        return {
+          success: true,
+          data: { tracklists: [] }
         };
       }
       
@@ -57,6 +88,11 @@ export async function searchTracklistsByTrack(isrc: string): Promise<TracklistsA
       };
     } catch (error) {
       console.error('Error calling 1001Tracklists API:', error);
+      
+      toast.error('Error connecting to 1001Tracklists', {
+        description: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'

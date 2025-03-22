@@ -130,6 +130,14 @@ serve(async (req) => {
       // Call the 1001Tracklists API with the provided path and params
       const result = await callTracklistsApi(path, params, apiKey);
       
+      // If we got empty data with no error, return a successful empty response
+      if (Object.keys(result).length === 0) {
+        return new Response(
+          JSON.stringify({ tracklists: [] }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+        );
+      }
+      
       // Return processed data with CORS headers
       return new Response(
         JSON.stringify(result),

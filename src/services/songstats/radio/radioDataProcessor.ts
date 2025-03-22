@@ -6,21 +6,21 @@ import { addOrUpdateRadioStation } from './stationHandler';
  * Process radio data from the API response
  */
 export const processRadioData = (
-  radioData: any, 
+  response: any, 
   inputIndex: number,
   processedStations: Map<string, RadioResult>
 ): RadioResult[] => {
   const newResults: RadioResult[] = [];
   
   // If no data found, return empty results
-  if (!radioData) {
+  if (!response) {
     console.log(`No radio data found for input index: ${inputIndex}`);
     return newResults;
   }
   
   // Find the radio stats section from the response
   // The tracks/stats endpoint with with_radio=true returns stats in a different format
-  const radioStats = radioData.stats?.find((stat: any) => 
+  const radioStats = response.stats?.find((stat: any) => 
     stat.source === 'radio' || 
     (stat.source === 'stats' && stat.data?.radio_plays_total !== undefined)
   );
@@ -32,19 +32,18 @@ export const processRadioData = (
   }
   
   // Log the stats we found
-  const statsData = {
+  console.log(`Found radio stats for input index ${inputIndex}:`, {
     radio_plays_total: radioStats.data.radio_plays_total || 0,
     radio_stations_total: radioStats.data.radio_stations_total || 0,
     sxm_plays_total: radioStats.data.sxm_plays_total || 0
-  };
-  console.log(`Radio stats data:`, JSON.stringify(statsData));
+  });
   
   // Check for detailed airplay data
   const radioPlays = radioStats.data.radio_plays || [];
   
   if (radioPlays.length > 0) {
     // Process actual play data from the API
-    console.log(`Found ${radioPlays.length} radio plays`);
+    console.log(`Found ${radioPlays.length} radio plays for input index ${inputIndex}`);
     
     // Group plays by station to consolidate multiple plays at the same station
     const stationPlays = new Map<string, any[]>();
@@ -86,92 +85,50 @@ export const processRadioData = (
         processedStations
       );
       
-      if (result && !processedStations.has(result.id)) {
+      if (result) {
         newResults.push(result);
         processedStations.set(result.id, result);
       }
     }
-  } else if (statsData.radio_plays_total > 0) {
+  } else if (radioStats.data.radio_plays_total > 0) {
     // When we only have summary data but no detailed plays,
     // create station entries based on the summary data
-    console.log(`Radio plays found (${statsData.radio_plays_total}) but no detailed station information`);
+    console.log(`Radio plays found (${radioStats.data.radio_plays_total}) but no detailed station information`);
     
     // Handle SiriusXM plays if present
-    if (statsData.sxm_plays_total > 0) {
-      const sxmResult = createOrUpdateSummaryStation(
-        'SiriusXM',
-        'sirius-xm',
-        'USA',
-        statsData.sxm_plays_total,
-        inputIndex,
-        processedStations
-      );
+    if (radioStats.data.sxm_plays_total > 0) {
+      const sxmResult: RadioResult = {
+        id: `sirius-xm-${inputIndex}`,
+        station: 'SiriusXM',
+        country: 'USA',
+        playsCount: radioStats.data.sxm_plays_total,
+        lastSpin: new Date().toISOString(),
+        matchedInputs: [inputIndex],
+        vertical: 'radio'
+      };
       
-      if (sxmResult && !processedStations.has(sxmResult.id)) {
-        newResults.push(sxmResult);
-        processedStations.set(sxmResult.id, sxmResult);
-      }
+      newResults.push(sxmResult);
+      processedStations.set(sxmResult.id, sxmResult);
     }
     
     // Handle terrestrial radio plays
-    const terrestrialPlays = statsData.radio_plays_total - (statsData.sxm_plays_total || 0);
+    const terrestrialPlays = radioStats.data.radio_plays_total - (radioStats.data.sxm_plays_total || 0);
     
     if (terrestrialPlays > 0) {
-      const terrestrialResult = createOrUpdateSummaryStation(
-        'Terrestrial Radio',
-        'terrestrial-radio',
-        'Various',
-        terrestrialPlays,
-        inputIndex,
-        processedStations
-      );
+      const terrestrialResult: RadioResult = {
+        id: `terrestrial-radio-${inputIndex}`,
+        station: 'Terrestrial Radio',
+        country: 'Various',
+        playsCount: terrestrialPlays,
+        lastSpin: new Date().toISOString(),
+        matchedInputs: [inputIndex],
+        vertical: 'radio'
+      };
       
-      if (terrestrialResult && !processedStations.has(terrestrialResult.id)) {
-        newResults.push(terrestrialResult);
-        processedStations.set(terrestrialResult.id, terrestrialResult);
-      }
+      newResults.push(terrestrialResult);
+      processedStations.set(terrestrialResult.id, terrestrialResult);
     }
   }
   
   return newResults;
-};
-
-/**
- * Create or update a summary station when we only have aggregate data
- */
-const createOrUpdateSummaryStation = (
-  stationName: string,
-  stationPrefix: string,
-  country: string,
-  playsCount: number,
-  inputIndex: number,
-  processedStations: Map<string, RadioResult>
-): RadioResult | null => {
-  const stationKey = `${stationPrefix}-${inputIndex}`;
-  
-  if (processedStations.has(stationKey)) {
-    const existing = processedStations.get(stationKey)!;
-    
-    if (!existing.matchedInputs.includes(inputIndex)) {
-      existing.matchedInputs.push(inputIndex);
-    }
-    
-    if (existing.playsCount !== undefined) {
-      existing.playsCount += playsCount;
-    }
-    
-    return null; // No new station to add
-  } else {
-    const result: RadioResult = {
-      id: stationKey,
-      station: stationName,
-      country: country,
-      playsCount: playsCount,
-      lastSpin: new Date().toISOString(),
-      matchedInputs: [inputIndex],
-      vertical: 'radio'
-    };
-    
-    return result;
-  }
 };

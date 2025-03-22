@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -38,20 +39,20 @@ export const callSongstatsApi = async (
       // Handle 404s gracefully
       if (error.message?.includes('404')) {
         console.log(`Resource not found at ${path}`);
-        return null;
+        return { error: `Resource not found at ${path}` };
       }
       
       toast.error(`API Error: ${getErrorMessage(error)}`, {
         description: `Path: ${path}`
       });
       
-      return null;
+      return { error: getErrorMessage(error) };
     }
 
     // Handle missing data
     if (!data) {
       console.warn(`No data returned for ${path}`);
-      return null;
+      return { error: `No data returned for ${path}` };
     }
 
     // Handle API-level errors in the response
@@ -68,11 +69,11 @@ export const callSongstatsApi = async (
       // Handle 404s gracefully
       if (data.status === 404) {
         console.log(`Resource not found at ${path}`);
-        return null;
+        return { error: `Resource not found at ${path}` };
       }
       
-      // Return data anyway, the caller might be able to use partial results
-      return data;
+      // Return the error in a more consistent format
+      return { error: data.error };
     }
 
     return data;
@@ -87,7 +88,7 @@ export const callSongstatsApi = async (
     }
     
     toast.error(`Connection error: ${getErrorMessage(error)}`);
-    return null;
+    return { error: getErrorMessage(error) };
   }
 };
 
@@ -133,7 +134,7 @@ export const getTrackByISRC = async (isrc: string) => {
     return await callSongstatsApi('tracks/stats', { isrc, with_playlists: "true" }); // Using string "true" instead of boolean true
   } catch (error) {
     console.error('Error getting track by ISRC:', error);
-    return null;
+    return { error: getErrorMessage(error) };
   }
 };
 
@@ -143,12 +144,7 @@ export const getTrackByISRC = async (isrc: string) => {
  */
 export const getISRCFromSpotifyTrack = async (spotifyId: string): Promise<string | null> => {
   try {
-    // Instead of using the tracks/by-platform endpoint (which is failing),
-    // we'll try to directly query the track information from Spotify using their API
-    // For now, we'll implement a simplified approach using the track ID directly
-    
-    // Format: https://open.spotify.com/track/2Fxmhks0bxGSBdJ92vM42m
-    // or just: 2Fxmhks0bxGSBdJ92vM42m
+    // Extract the Spotify ID from URL if needed
     const cleanId = spotifyId.includes('/') ? spotifyId.split('/').pop() : spotifyId;
     
     if (!cleanId) {
