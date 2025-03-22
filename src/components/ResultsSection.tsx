@@ -1,7 +1,8 @@
 
 import React from 'react';
 import FilterSection from '@/components/FilterSection';
-import ResultsTable, { PlaylistResult } from '@/components/ResultsTable';
+import ResultsTable from '@/components/ResultsTable';
+import type { PlaylistResult } from '@/components/results-table/types';
 
 interface ResultsSectionProps {
   results: {
