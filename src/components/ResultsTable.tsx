@@ -26,7 +26,7 @@ export interface PlaylistResult {
 interface ResultsTableProps {
   results: PlaylistResult[];
   filterRecent: boolean;
-  filterFollowers: boolean;
+  followerThreshold: number;
   loading?: boolean;
 }
 
@@ -37,7 +37,7 @@ const formatNumber = (num: number): string => {
 const ResultsTable: React.FC<ResultsTableProps> = ({
   results,
   filterRecent,
-  filterFollowers,
+  followerThreshold,
   loading = false,
 }) => {
   // Apply filters
@@ -49,7 +49,7 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
       }
     }
     
-    if (filterFollowers && result.followerCount < 10000) {
+    if (followerThreshold > 0 && result.followerCount < followerThreshold) {
       return false;
     }
     

@@ -2,19 +2,36 @@
 import React from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface FilterSectionProps {
   filterRecent: boolean;
   onFilterRecentChange: (checked: boolean) => void;
-  filterFollowers: boolean;
-  onFilterFollowersChange: (checked: boolean) => void;
+  followerThreshold: number;
+  onFollowerThresholdChange: (value: number) => void;
 }
+
+// Available follower thresholds for filtering
+const followerOptions = [
+  { label: 'No minimum', value: 0 },
+  { label: '1,000+ followers', value: 1000 },
+  { label: '5,000+ followers', value: 5000 },
+  { label: '10,000+ followers', value: 10000 },
+  { label: '50,000+ followers', value: 50000 },
+  { label: '100,000+ followers', value: 100000 },
+];
 
 const FilterSection: React.FC<FilterSectionProps> = ({
   filterRecent,
   onFilterRecentChange,
-  filterFollowers,
-  onFilterFollowersChange,
+  followerThreshold,
+  onFollowerThresholdChange,
 }) => {
   return (
     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8 py-4 px-2 animate-slide-in">
@@ -34,18 +51,27 @@ const FilterSection: React.FC<FilterSectionProps> = ({
       </div>
       
       <div className="flex items-center space-x-3">
-        <Checkbox
-          id="filterFollowers"
-          checked={filterFollowers}
-          onCheckedChange={onFilterFollowersChange}
-          className="transition-all-200"
-        />
         <Label
-          htmlFor="filterFollowers"
-          className="text-sm cursor-pointer transition-all-200"
+          htmlFor="followerThreshold"
+          className="text-sm transition-all-200"
         >
-          Only show playlists with more than 10,000 followers
+          Minimum followers:
         </Label>
+        <Select
+          value={followerThreshold.toString()}
+          onValueChange={(value) => onFollowerThresholdChange(Number(value))}
+        >
+          <SelectTrigger id="followerThreshold" className="w-[180px]">
+            <SelectValue placeholder="Select minimum followers" />
+          </SelectTrigger>
+          <SelectContent>
+            {followerOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value.toString()}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

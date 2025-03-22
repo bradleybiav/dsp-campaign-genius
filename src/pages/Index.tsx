@@ -88,7 +88,7 @@ const Index = () => {
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState<PlaylistResult[]>([]);
   const [filterRecent, setFilterRecent] = useState(false);
-  const [filterFollowers, setFilterFollowers] = useState(false);
+  const [followerThreshold, setFollowerThreshold] = useState(0);
   const [loading, setLoading] = useState(false);
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -138,14 +138,14 @@ const Index = () => {
               <FilterSection
                 filterRecent={filterRecent}
                 onFilterRecentChange={setFilterRecent}
-                filterFollowers={filterFollowers}
-                onFilterFollowersChange={setFilterFollowers}
+                followerThreshold={followerThreshold}
+                onFollowerThresholdChange={setFollowerThreshold}
               />
               
               <ResultsTable
                 results={results}
                 filterRecent={filterRecent}
-                filterFollowers={filterFollowers}
+                followerThreshold={followerThreshold}
                 loading={loading}
               />
             </section>
