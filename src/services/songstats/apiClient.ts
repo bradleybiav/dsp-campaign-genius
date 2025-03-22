@@ -139,29 +139,43 @@ export const getTrackByISRC = async (isrc: string) => {
 };
 
 /**
- * Get Songstats track ID from Spotify ID
- */
-export const getTrackBySpotifyId = async (spotifyId: string) => {
-  try {
-    console.log(`Getting track details for Spotify ID: ${spotifyId}`);
-    return await callSongstatsApi('tracks/by-platform', { 
-      platform: 'spotify',
-      id: spotifyId
-    });
-  } catch (error) {
-    console.error('Error getting track by Spotify ID:', error);
-    return null;
-  }
-};
-
-/**
- * Extract ISRC from track ID or URL
+ * Get ISRC directly from Songstats Enterprise API
+ * This is a more reliable method than using the platform endpoint
  */
 export const getISRCFromSpotifyTrack = async (spotifyId: string): Promise<string | null> => {
   try {
-    const trackData = await getTrackBySpotifyId(spotifyId);
+    // Instead of using the tracks/by-platform endpoint (which is failing),
+    // we'll try to directly query the track information from Spotify using their API
+    // For now, we'll implement a simplified approach using the track ID directly
+    
+    // Format: https://open.spotify.com/track/2Fxmhks0bxGSBdJ92vM42m
+    // or just: 2Fxmhks0bxGSBdJ92vM42m
+    const cleanId = spotifyId.includes('/') ? spotifyId.split('/').pop() : spotifyId;
+    
+    if (!cleanId) {
+      console.error('Unable to extract Spotify track ID');
+      return null;
+    }
+    
+    // Using the Enterprise API /tracks/metadata endpoint
+    const trackData = await callSongstatsApi('tracks/metadata', { 
+      platform: 'spotify',
+      id: cleanId
+    });
     
     if (!trackData || trackData.error) {
+      console.log(`No metadata found for Spotify track ID: ${cleanId}`);
+      
+      // Try the Enterprise API /tracks/search endpoint as fallback
+      const searchData = await callSongstatsApi('tracks/search', {
+        q: cleanId,
+        platform: 'spotify'
+      });
+      
+      if (searchData && searchData.tracks && searchData.tracks.length > 0) {
+        return searchData.tracks[0].isrc || null;
+      }
+      
       return null;
     }
     
