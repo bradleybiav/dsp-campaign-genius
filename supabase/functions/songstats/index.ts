@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders } from "../_shared/cors.ts"
 
 // Default base URL for Songstats Enterprise API
+// RadioStats API uses the same base URL structure
 const ENTERPRISE_API_URL = 'https://api.songstats.com/enterprise/v1';
 
 // Maximum retries for API calls
@@ -77,12 +78,19 @@ async function processApiResponse(response: Response): Promise<object> {
 
 /**
  * Call the Songstats Enterprise API
+ * This function now handles both Enterprise API and RadioStats API calls
  */
 async function callEnterpriseApi(path: string, params: any, apiKey: string): Promise<any> {
   const queryParams = new URLSearchParams(params);
-  const url = `${ENTERPRISE_API_URL}/${path}?${queryParams.toString()}`;
   
-  console.log(`Calling Enterprise API: ${url}`);
+  // For radio endpoints, use RadioStats API URL
+  const baseUrl = path.startsWith('radio/') 
+    ? ENTERPRISE_API_URL.replace('enterprise', 'radiostats') 
+    : ENTERPRISE_API_URL;
+  
+  const url = `${baseUrl}/${path}?${queryParams.toString()}`;
+  
+  console.log(`Calling API: ${url}`);
   
   const requestOptions = {
     method: "GET",
@@ -98,7 +106,7 @@ async function callEnterpriseApi(path: string, params: any, apiKey: string): Pro
     const response = await fetchWithRetry(url, requestOptions, 0);
     return await processApiResponse(response);
   } catch (error) {
-    console.error(`Error calling Enterprise API: ${error.message}`);
+    console.error(`Error calling API: ${error.message}`);
     return { error: error.message };
   }
 }

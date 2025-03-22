@@ -42,10 +42,10 @@ export const getRadioPlays = async (
       
       radioApiStats.total++;
       
-      // Get track stats with radio using ISRC
-      const trackData = await callSongstatsApi('tracks/stats', { 
-        isrc: isrc,
-        with_radio: "true" // Using string "true" instead of boolean true
+      // Get track stats with radio using ISRC - using the RadioStats specific endpoint
+      // According to docs, this is the preferred endpoint for radio stats
+      const trackData = await callSongstatsApi('radio/isrc', { 
+        isrc: isrc
       });
       
       if (!trackData || trackData.error) {
