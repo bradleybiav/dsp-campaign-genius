@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { format, isAfter, parseISO, subDays } from 'date-fns';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export interface PlaylistResult {
   id: string;
@@ -21,7 +22,7 @@ export interface PlaylistResult {
   lastUpdated: string;
   matchedInputs: number[];
   playlistUrl: string;
-  vertical: string; // Added vertical field
+  vertical: string;
 }
 
 interface ResultsTableProps {
@@ -43,6 +44,18 @@ const getVerticalColor = (vertical: string): string => {
     case 'radio': return 'bg-green-100 text-green-700 border-green-200';
     case 'dj': return 'bg-purple-100 text-purple-700 border-purple-200';
     case 'press': return 'bg-orange-100 text-orange-700 border-orange-200';
+    default: return '';
+  }
+};
+
+// Helper function to get background color for tab
+const getTabColor = (vertical: string): string => {
+  switch (vertical) {
+    case 'dsp': return 'data-[state=active]:bg-blue-50';
+    case 'radio': return 'data-[state=active]:bg-green-50';
+    case 'dj': return 'data-[state=active]:bg-purple-50';
+    case 'press': return 'data-[state=active]:bg-orange-50';
+    case 'all': return 'data-[state=active]:bg-gray-50';
     default: return '';
   }
 };
@@ -74,6 +87,23 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
     return true;
   });
 
+  // Group results by vertical for tabs
+  const verticals = ['dsp', 'radio', 'dj', 'press'];
+  const resultsByVertical: Record<string, PlaylistResult[]> = {};
+  
+  verticals.forEach(vertical => {
+    resultsByVertical[vertical] = filteredResults.filter(result => result.vertical === vertical);
+  });
+
+  const activeVerticals = verticals.filter(vertical => 
+    selectedVerticals.length === 0 || selectedVerticals.includes(vertical)
+  );
+  
+  // Set default active tab to the first non-empty vertical
+  const firstNonEmptyVertical = activeVerticals.find(vertical => 
+    resultsByVertical[vertical].length > 0
+  ) || 'all';
+
   if (loading) {
     return (
       <div className="mt-4 relative overflow-hidden glass-panel subtle-shadow rounded-xl animate-fade-in">
@@ -87,8 +117,19 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
     );
   }
 
-  return (
-    <div className="mt-4 relative overflow-hidden glass-panel subtle-shadow rounded-xl animate-fade-in">
+  const renderResultsTable = (results: PlaylistResult[]) => {
+    if (results.length === 0) {
+      return (
+        <div className="h-32 flex items-center justify-center flex-col space-y-2">
+          <p className="text-muted-foreground">No results found.</p>
+          <p className="text-sm text-muted-foreground/70">
+            Try adjusting your filters or adding more reference tracks.
+          </p>
+        </div>
+      );
+    }
+
+    return (
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
@@ -97,68 +138,101 @@ const ResultsTable: React.FC<ResultsTableProps> = ({
             <TableHead className="font-medium text-right">Followers</TableHead>
             <TableHead className="font-medium">Last Updated</TableHead>
             <TableHead className="font-medium">Matched Inputs</TableHead>
-            <TableHead className="font-medium">Vertical</TableHead>
             <TableHead className="font-medium text-right">Action</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredResults.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={7} className="h-32 text-center">
-                <div className="flex flex-col items-center justify-center space-y-2">
-                  <p className="text-muted-foreground">No results found.</p>
-                  <p className="text-sm text-muted-foreground/70">
-                    Try adjusting your filters or adding more reference tracks.
-                  </p>
+          {results.map((result) => (
+            <TableRow 
+              key={result.id}
+              className="group transition-all-200"
+            >
+              <TableCell className="font-medium">
+                {result.playlistName}
+              </TableCell>
+              <TableCell>{result.curatorName}</TableCell>
+              <TableCell className="text-right">
+                {formatNumber(result.followerCount)}
+              </TableCell>
+              <TableCell>
+                {format(parseISO(result.lastUpdated), 'MMM d, yyyy')}
+              </TableCell>
+              <TableCell>
+                <div className="flex gap-1 flex-wrap">
+                  {result.matchedInputs.map((inputIdx) => (
+                    <Badge key={inputIdx} variant="outline" className="text-xs">
+                      #{inputIdx + 1}
+                    </Badge>
+                  ))}
                 </div>
               </TableCell>
+              <TableCell className="text-right">
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="opacity-50 group-hover:opacity-100 transition-all-200"
+                  onClick={() => window.open(result.playlistUrl, '_blank')}
+                >
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                  Open
+                </Button>
+              </TableCell>
             </TableRow>
-          ) : (
-            filteredResults.map((result) => (
-              <TableRow 
-                key={result.id}
-                className="group transition-all-200"
-              >
-                <TableCell className="font-medium">
-                  {result.playlistName}
-                </TableCell>
-                <TableCell>{result.curatorName}</TableCell>
-                <TableCell className="text-right">
-                  {formatNumber(result.followerCount)}
-                </TableCell>
-                <TableCell>
-                  {format(parseISO(result.lastUpdated), 'MMM d, yyyy')}
-                </TableCell>
-                <TableCell>
-                  <div className="flex gap-1 flex-wrap">
-                    {result.matchedInputs.map((inputIdx) => (
-                      <Badge key={inputIdx} variant="outline" className="text-xs">
-                        #{inputIdx + 1}
-                      </Badge>
-                    ))}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge className={`${getVerticalColor(result.vertical)}`}>
-                    {result.vertical.toUpperCase()}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    className="opacity-50 group-hover:opacity-100 transition-all-200"
-                    onClick={() => window.open(result.playlistUrl, '_blank')}
-                  >
-                    <ExternalLink className="h-4 w-4 mr-1" />
-                    Open
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))
-          )}
+          ))}
         </TableBody>
       </Table>
+    );
+  };
+
+  // If there are no results across any vertical
+  if (filteredResults.length === 0) {
+    return (
+      <div className="mt-4 relative overflow-hidden glass-panel subtle-shadow rounded-xl animate-fade-in p-8">
+        <div className="flex flex-col items-center justify-center h-32 space-y-2">
+          <p className="text-muted-foreground">No results found.</p>
+          <p className="text-sm text-muted-foreground/70">
+            Try adjusting your filters or adding more reference tracks.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 relative overflow-hidden glass-panel subtle-shadow rounded-xl animate-fade-in">
+      <Tabs defaultValue={firstNonEmptyVertical} className="w-full">
+        <TabsList className="w-full bg-muted/50 rounded-t-xl rounded-b-none border-b p-0">
+          <TabsTrigger 
+            value="all" 
+            className={`flex-1 rounded-none ${getTabColor('all')}`}
+          >
+            All Results ({filteredResults.length})
+          </TabsTrigger>
+          {activeVerticals.map(vertical => (
+            <TabsTrigger 
+              key={vertical}
+              value={vertical}
+              className={`flex-1 rounded-none ${getTabColor(vertical)}`}
+              disabled={resultsByVertical[vertical].length === 0}
+            >
+              <div className="flex items-center gap-2">
+                <Badge className={`${getVerticalColor(vertical)} w-2 h-2 p-0 rounded-full`} />
+                {vertical.toUpperCase()} ({resultsByVertical[vertical].length})
+              </div>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        
+        <TabsContent value="all" className="pt-0 mt-0">
+          {renderResultsTable(filteredResults)}
+        </TabsContent>
+        
+        {activeVerticals.map(vertical => (
+          <TabsContent key={vertical} value={vertical} className="pt-0 mt-0">
+            {renderResultsTable(resultsByVertical[vertical])}
+          </TabsContent>
+        ))}
+      </Tabs>
     </div>
   );
 };

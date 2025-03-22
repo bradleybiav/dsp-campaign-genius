@@ -54,7 +54,7 @@ const FilterSection: React.FC<FilterSectionProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-4 py-4 px-2 animate-slide-in">
+    <div className="flex flex-col gap-4 py-4 px-2 animate-slide-in mb-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
         <div className="flex items-center space-x-3">
           <Checkbox
@@ -108,7 +108,10 @@ const FilterSection: React.FC<FilterSectionProps> = ({
                 className={`cursor-pointer px-3 py-1 ${isSelected ? option.color : "hover:bg-secondary"}`}
                 onClick={() => toggleVertical(option.value)}
               >
-                {option.label}
+                <span className="flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${option.color.replace('text-', 'bg-').replace('-700', '-500')}`}></span>
+                  {option.label}
+                </span>
               </Badge>
             );
           })}
