@@ -34,7 +34,9 @@ export const processRadioData = (
       }
     }
     
-    console.warn('Invalid radio data format:', response);
+    // Log the actual response structure for debugging
+    console.warn('Invalid radio data format. Response structure:', 
+      Object.keys(response).join(', '));
     return results;
   }
   
@@ -52,9 +54,14 @@ const processStationsArray = (
 ): RadioResult[] => {
   const results: RadioResult[] = [];
   
+  console.log(`Processing ${stations.length} radio stations`);
+  
   for (const station of stations) {
+    // Debug log to see the station data structure
+    console.log('Processing station:', JSON.stringify(station).substring(0, 200));
+    
     // Skip if required data is missing
-    if (!station.name && !station.station_name) {
+    if (!station.name && !station.station_name && !station.station) {
       console.warn('Skipping station with missing name:', station);
       continue;
     }
@@ -64,10 +71,20 @@ const processStationsArray = (
     const stationKey = stationName;
     
     // For spins/plays count - handle different API field names
-    const playsCount = station.spins || station.plays || station.count || 1;
+    const playsCount = station.spins || station.plays || station.count || station.frequency || 1;
     
     // Format date - use the most recent spin date if available
-    const lastSpin = station.last_spin_date || station.last_play || station.date || new Date().toISOString();
+    const lastSpin = station.last_spin_date || station.last_play || station.date || 
+                     station.last_played || new Date().toISOString();
+    
+    // Get country information with more fallbacks
+    const country = station.country || station.region || station.market || 'Unknown';
+    
+    // DJ/Host information with fallbacks
+    const dj = station.dj || station.host || station.presenter || 'Unknown DJ';
+    
+    // Show/Program information
+    const show = station.show || station.program || station.broadcast || '';
     
     // Check if we've already processed this station
     if (processedStations.has(stationKey)) {
@@ -92,12 +109,12 @@ const processStationsArray = (
       const result: RadioResult = {
         id: `radio-${stationName}-${inputIndex}`,
         station: stationName,
-        country: station.country || (station.region ? station.region : 'Unknown'), // Try country first, then region as fallback
-        dj: station.dj || station.host || 'Unknown DJ',
-        show: station.show || station.program || '',
+        country: country,
+        dj: dj,
+        show: show,
         playsCount: playsCount,
         lastSpin: lastSpin,
-        airplayLink: station.link || '',
+        airplayLink: station.link || station.url || '',
         matchedInputs: [inputIndex],
         vertical: 'radio'
       };
@@ -108,5 +125,6 @@ const processStationsArray = (
     }
   }
   
+  console.log(`Processed ${results.length} unique radio stations`);
   return results;
 };

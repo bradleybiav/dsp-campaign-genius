@@ -102,7 +102,15 @@ async function callSongstatsApi(path: string, params: any, apiKey: string, isRad
   
   try {
     const response = await fetchWithRetry(url, requestOptions, 0);
-    return await processApiResponse(response);
+    const processedResponse = await processApiResponse(response);
+    
+    // Log API response structure for debugging
+    if (isRadioApi || path.includes('radio')) {
+      console.log(`Response structure from ${isRadioApi ? 'RadioStats' : 'Enterprise'} API:`, 
+        Object.keys(processedResponse));
+    }
+    
+    return processedResponse;
   } catch (error) {
     console.error(`Error calling API: ${error.message}`);
     return { error: error.message };
