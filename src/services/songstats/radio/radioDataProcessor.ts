@@ -11,80 +11,98 @@ export const processRadioData = (
 ): RadioResult[] => {
   const results: RadioResult[] = [];
   
-  // Guard against invalid response format
-  if (!response || !response.data || !Array.isArray(response.data)) {
-    // Some versions of the API return directly in response.stations
-    if (response.stations && Array.isArray(response.stations)) {
-      console.log('Found radio data in response.stations format');
-      return processStationsArray(response.stations, inputIndex, processedStations);
+  // Log debugging information about the response structure
+  console.log('Processing radio data response:', 
+    JSON.stringify(response).substring(0, 200) + '...');
+  console.log('Response keys:', Object.keys(response).join(', '));
+  
+  // Extract stations array from various possible response formats
+  let stations: any[] = [];
+  
+  // Case 1: Direct data array
+  if (response.data && Array.isArray(response.data)) {
+    console.log('Found radio stations in response.data array format');
+    stations = response.data;
+  } 
+  // Case 2: Response.stations format
+  else if (response.stations && Array.isArray(response.stations)) {
+    console.log('Found radio stations in response.stations format');
+    stations = response.stations;
+  }
+  // Case 3: Response.radio format
+  else if (response.radio && Array.isArray(response.radio)) {
+    console.log('Found radio stations in response.radio format');
+    stations = response.radio;
+  }
+  // Case 4: Response.tracks[0].radio format
+  else if (response.tracks && Array.isArray(response.tracks) && response.tracks.length > 0) {
+    const track = response.tracks[0];
+    if (track.radio && Array.isArray(track.radio)) {
+      console.log('Found radio stations in response.tracks[0].radio format');
+      stations = track.radio;
     }
-    
-    // Other versions might have a different structure
-    if (response.radio && Array.isArray(response.radio)) {
-      console.log('Found radio data in response.radio format');
-      return processStationsArray(response.radio, inputIndex, processedStations);
-    }
-    
-    // Check for tracks array that contains radio data
-    if (response.tracks && Array.isArray(response.tracks) && response.tracks.length > 0) {
-      const track = response.tracks[0];
-      if (track.radio && Array.isArray(track.radio)) {
-        console.log('Found radio data in response.tracks[0].radio format');
-        return processStationsArray(track.radio, inputIndex, processedStations);
+  }
+  // Case 5: Stats array with radio data
+  else if (response.stats && Array.isArray(response.stats)) {
+    for (const stat of response.stats) {
+      if (stat.source === 'radio' && stat.data) {
+        if (Array.isArray(stat.data)) {
+          console.log('Found radio stations in response.stats[].data array format');
+          stations = stat.data;
+          break;
+        } else if (stat.data.plays && Array.isArray(stat.data.plays)) {
+          console.log('Found radio stations in response.stats[].data.plays format');
+          stations = stat.data.plays;
+          break;
+        } else if (stat.data.radio_plays && Array.isArray(stat.data.radio_plays)) {
+          console.log('Found radio stations in response.stats[].data.radio_plays format');
+          stations = stat.data.radio_plays;
+          break;
+        }
       }
     }
-    
-    // Log the actual response structure for debugging
-    console.warn('Invalid radio data format. Response structure:', 
-      Object.keys(response).join(', '));
+  }
+  
+  // If no stations found in any format, log and return empty
+  if (stations.length === 0) {
+    console.warn('No radio stations found in the response:', 
+      JSON.stringify(response).substring(0, 300));
     return results;
   }
   
-  // Process standard data array format
-  return processStationsArray(response.data, inputIndex, processedStations);
-};
-
-/**
- * Process an array of station data, handling different possible data structures
- */
-const processStationsArray = (
-  stations: any[],
-  inputIndex: number,
-  processedStations: Map<string, RadioResult>
-): RadioResult[] => {
-  const results: RadioResult[] = [];
-  
   console.log(`Processing ${stations.length} radio stations`);
   
+  // Process each station
   for (const station of stations) {
     // Debug log to see the station data structure
     console.log('Processing station:', JSON.stringify(station).substring(0, 200));
     
-    // Skip if required data is missing
-    if (!station.name && !station.station_name && !station.station) {
-      console.warn('Skipping station with missing name:', station);
-      continue;
-    }
+    // Enhanced name extraction with multiple fallbacks
+    const stationName = station.name || station.station_name || station.station || 
+                        station.call_sign || 'Unknown Station';
     
-    // Create unique key for this station - handle different API field names
-    const stationName = station.name || station.station_name || station.station || 'Unknown Station';
-    const stationKey = stationName;
+    // Create a unique key for this station
+    const stationKey = `${stationName}-${station.country || ''}`;
     
-    // For spins/plays count - handle different API field names
-    const playsCount = station.spins || station.plays || station.count || station.frequency || 1;
+    // Extract plays count with fallbacks
+    const playsCount = station.spins || station.plays || station.count || 
+                      station.frequency || station.spin_count || 1;
     
     // Format date - use the most recent spin date if available
     const lastSpin = station.last_spin_date || station.last_play || station.date || 
-                     station.last_played || new Date().toISOString();
+                    station.last_played || station.last_spin || new Date().toISOString();
     
-    // Get country information with more fallbacks
+    // Extract country information with more fallbacks
     const country = station.country || station.region || station.market || 'Unknown';
     
     // DJ/Host information with fallbacks
-    const dj = station.dj || station.host || station.presenter || 'Unknown DJ';
+    const dj = station.dj || station.host || station.presenter || '';
     
-    // Show/Program information
+    // Show/Program information with fallbacks
     const show = station.show || station.program || station.broadcast || '';
+    
+    // Extract any airplay link if available
+    const airplayLink = station.link || station.url || station.airplay_link || '';
     
     // Check if we've already processed this station
     if (processedStations.has(stationKey)) {
@@ -101,20 +119,22 @@ const processStationsArray = (
       }
       
       // Update last spin if more recent
-      if (new Date(lastSpin) > new Date(existingResult.lastSpin)) {
+      const existingDate = new Date(existingResult.lastSpin);
+      const newDate = new Date(lastSpin);
+      if (!isNaN(newDate.getTime()) && !isNaN(existingDate.getTime()) && newDate > existingDate) {
         existingResult.lastSpin = lastSpin;
       }
     } else {
       // Create new result
       const result: RadioResult = {
-        id: `radio-${stationName}-${inputIndex}`,
+        id: `radio-${stationName}-${inputIndex}-${Math.random().toString(36).substring(2, 10)}`,
         station: stationName,
         country: country,
-        dj: dj,
-        show: show,
+        dj: dj || undefined,
+        show: show || undefined,
         playsCount: playsCount,
         lastSpin: lastSpin,
-        airplayLink: station.link || station.url || '',
+        airplayLink: airplayLink || undefined,
         matchedInputs: [inputIndex],
         vertical: 'radio'
       };

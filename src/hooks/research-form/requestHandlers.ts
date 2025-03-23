@@ -45,67 +45,59 @@ export async function executeResearch(
   
   // DSP vertical
   if (selectedVerticals.includes('dsp')) {
-    const dspPromise = getPlaylistPlacements(normalizedInputs)
-      .then(results => {
-        researchResults.dspResults = results;
-        console.log('DSP results:', results.length);
-        if (results.length > 0) successfulVerticals.push('dsp');
-        else if (results.length === 0) failedVerticals.push('dsp');
-      })
-      .catch(error => {
-        failedVerticals.push('dsp');
-        showServiceError('Playlist', error);
-      });
-    researchPromises.push(dspPromise);
+    // Filter inputs for DSP research (both track and artist URLs are valid)
+    const dspInputs = normalizedInputs.filter(input => 
+      input.type === 'spotify_track' || input.type === 'isrc');
+    
+    console.log(`Filtered ${dspInputs.length} inputs for DSP research`);
+    
+    if (dspInputs.length > 0) {
+      const dspPromise = getPlaylistPlacements(dspInputs)
+        .then(results => {
+          researchResults.dspResults = results;
+          console.log('DSP results:', results.length);
+          if (results.length > 0) successfulVerticals.push('dsp');
+          else if (results.length === 0) failedVerticals.push('dsp');
+        })
+        .catch(error => {
+          failedVerticals.push('dsp');
+          showServiceError('Playlist', error);
+        });
+      researchPromises.push(dspPromise);
+    } else {
+      console.warn('No valid inputs for DSP research');
+      failedVerticals.push('dsp');
+    }
   }
   
   // Radio vertical
   if (selectedVerticals.includes('radio')) {
-    const radioPromise = getRadioPlays(normalizedInputs)
-      .then(results => {
-        researchResults.radioResults = results;
-        console.log('Radio results:', results.length);
-        if (results.length > 0) successfulVerticals.push('radio');
-        else if (results.length === 0) failedVerticals.push('radio');
-      })
-      .catch(error => {
-        failedVerticals.push('radio');
-        showServiceError('Radio', error);
-      });
-    researchPromises.push(radioPromise);
+    // Filter inputs for Radio research (only track URLs and ISRCs are valid)
+    const radioInputs = normalizedInputs.filter(input => 
+      input.type === 'spotify_track' || input.type === 'isrc');
+    
+    console.log(`Filtered ${radioInputs.length} inputs for Radio research`);
+    
+    if (radioInputs.length > 0) {
+      const radioPromise = getRadioPlays(radioInputs)
+        .then(results => {
+          researchResults.radioResults = results;
+          console.log('Radio results:', results.length);
+          if (results.length > 0) successfulVerticals.push('radio');
+          else if (results.length === 0) failedVerticals.push('radio');
+        })
+        .catch(error => {
+          failedVerticals.push('radio');
+          showServiceError('Radio', error);
+        });
+      researchPromises.push(radioPromise);
+    } else {
+      console.warn('No valid inputs for Radio research');
+      failedVerticals.push('radio');
+    }
   }
   
-  // DJ vertical
-  if (selectedVerticals.includes('dj')) {
-    const djPromise = getDjPlacements(normalizedInputs)
-      .then(results => {
-        researchResults.djResults = results;
-        console.log('DJ results:', results.length);
-        if (results.length > 0) successfulVerticals.push('dj');
-        else if (results.length === 0) failedVerticals.push('dj');
-      })
-      .catch(error => {
-        failedVerticals.push('dj');
-        showServiceError('DJ', error);
-      });
-    researchPromises.push(djPromise);
-  }
-  
-  // Press vertical
-  if (selectedVerticals.includes('press')) {
-    const pressPromise = getPressResults(normalizedInputs)
-      .then(results => {
-        researchResults.pressResults = results;
-        console.log('Press results:', results.length);
-        if (results.length > 0) successfulVerticals.push('press');
-        else if (results.length === 0) failedVerticals.push('press');
-      })
-      .catch(error => {
-        failedVerticals.push('press');
-        showServiceError('Press', error);
-      });
-    researchPromises.push(pressPromise);
-  }
+  // Skip DJ and Press as requested
   
   // Wait for all research to complete
   await Promise.all(researchPromises);
@@ -113,9 +105,7 @@ export async function executeResearch(
   // Check if we actually got any results
   const hasResults = 
     researchResults.dspResults.length > 0 ||
-    researchResults.radioResults.length > 0 ||
-    researchResults.djResults.length > 0 ||
-    researchResults.pressResults.length > 0;
+    researchResults.radioResults.length > 0;
   
   // Show which verticals succeeded and which failed
   if (hasResults) {

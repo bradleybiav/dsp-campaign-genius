@@ -19,6 +19,9 @@ async function fetchWithRetry(url: string, options: RequestInit, retries = 0): P
     
     const response = await fetch(url, options);
     
+    // Log response status for monitoring
+    console.log(`Response status: ${response.status} from ${url}`);
+    
     // Handle rate limiting (429) and server errors (5xx) with retries
     if ((response.status === 429 || response.status >= 500) && retries < MAX_RETRIES) {
       console.log(`Received status ${response.status}, retrying (${retries + 1}/${MAX_RETRIES})`);
@@ -88,7 +91,7 @@ async function callSongstatsApi(path: string, params: any, apiKey: string, isRad
   // Build the complete URL
   const url = `${baseUrl}/${path}?${queryParams.toString()}`;
   
-  console.log(`Calling API: ${url} ${isRadioApi ? '(RadioStats API)' : ''}`);
+  console.log(`Calling API: ${url} ${isRadioApi ? '(RadioStats API)' : '(Enterprise API)'}`);
   
   const requestOptions = {
     method: "GET",
