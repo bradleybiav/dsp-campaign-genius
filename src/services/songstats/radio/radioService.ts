@@ -52,35 +52,56 @@ export const getRadioPlays = async (
       
       radioApiStats.total++;
       
-      // Try "tracks/stats" endpoint with radio parameter
-      const response = await callSongstatsApi('tracks/stats', { 
-        isrc: isrc,
-        with_radio: "true" // Using string "true" instead of boolean true
-      });
+      // Try specific radio endpoint directly
+      console.log(`Attempting to get radio data for ISRC: ${isrc}`);
+      const response = await callSongstatsApi('tracks/radio', { 
+        isrc: isrc
+      }, true); // Using isRadioApi=true to indicate this is a RadioStats API call
       
+      // If the specific endpoint failed, try the stats endpoint with radio parameter
       if (!response || response.error) {
-        console.error('Error getting radio data for ISRC:', response?.error || 'Unknown error');
-        radioApiStats.failed++;
-        continue;
-      }
-      
-      // Process successful response
-      radioApiStats.success++;
-      
-      // Enhanced debugging - log the first part of the response to see its structure
-      console.log(`Radio API response structure for ISRC ${isrc}:`, 
-        JSON.stringify(response).substring(0, 300) + '...');
-      
-      // Extract radio data from the stats response with enhanced extraction
-      const radioData = extractRadioDataFromStats(response);
-      
-      if (radioData && Array.isArray(radioData) && radioData.length > 0) {
-        console.log(`Found ${radioData.length} radio plays for ISRC: ${isrc}`);
-        // Process the radio data
-        const radioResults = processRadioData({ data: radioData }, input.inputIndex, processedStations);
-        results.push(...radioResults);
+        console.log(`Track/radio endpoint failed for ISRC ${isrc}, trying tracks/stats with radio parameter`);
+        
+        const statsResponse = await callSongstatsApi('tracks/stats', { 
+          isrc: isrc,
+          with_radio: "true" // Using string "true" instead of boolean true
+        });
+        
+        if (!statsResponse || statsResponse.error) {
+          console.error('Error getting radio data for ISRC via both methods:', 
+            statsResponse?.error || response?.error || 'Unknown error');
+          radioApiStats.failed++;
+          continue;
+        }
+        
+        // Process successful stats response
+        radioApiStats.success++;
+        
+        // Enhanced debugging - log the first part of the response to see its structure
+        console.log(`Radio API stats response structure for ISRC ${isrc}:`, 
+          JSON.stringify(statsResponse).substring(0, 300) + '...');
+        
+        // Extract radio data from the stats response with enhanced extraction
+        const radioData = extractRadioDataFromStats(statsResponse);
+        
+        if (radioData && Array.isArray(radioData) && radioData.length > 0) {
+          console.log(`Found ${radioData.length} radio plays for ISRC: ${isrc}`);
+          // Process the radio data
+          const radioResults = processRadioData({ data: radioData }, input.inputIndex, processedStations);
+          results.push(...radioResults);
+        } else {
+          console.log(`No radio data found in stats response for ISRC: ${isrc}`);
+        }
       } else {
-        console.log(`No radio data found in response for ISRC: ${isrc}`);
+        // Process successful direct response
+        radioApiStats.success++;
+        
+        console.log(`Direct radio API response structure for ISRC ${isrc}:`, 
+          JSON.stringify(response).substring(0, 300) + '...');
+        
+        // Process the radio data from direct response
+        const radioResults = processRadioData(response, input.inputIndex, processedStations);
+        results.push(...radioResults);
       }
     }
     
@@ -142,6 +163,19 @@ const extractRadioDataFromStats = (response: any): any[] | null => {
         console.log('Found radio data in stats data.radio_stations');
         return stat.data.radio_stations;
       }
+      
+      // Case 1.6: Look through other objects
+      if (stat.source !== 'radio' && stat.data && typeof stat.data === 'object') {
+        // Look for any array property that might contain radio data
+        for (const key in stat.data) {
+          if (Array.isArray(stat.data[key]) && 
+              (key.includes('radio') || key.includes('station') || key.includes('play')) && 
+              stat.data[key].length > 0) {
+            console.log(`Found potential radio data in stats.data.${key}`);
+            return stat.data[key];
+          }
+        }
+      }
     }
   }
   
@@ -184,6 +218,16 @@ const extractRadioDataFromStats = (response: any): any[] | null => {
       console.log('Found radio data in response.data.stations');
       return response.data.stations;
     }
+    
+    // Case 3.4: Look for any array property that might contain radio data
+    for (const key in response.data) {
+      if (Array.isArray(response.data[key]) && 
+          (key.includes('radio') || key.includes('station') || key.includes('play')) && 
+          response.data[key].length > 0) {
+        console.log(`Found potential radio data in response.data.${key}`);
+        return response.data[key];
+      }
+    }
   }
   
   // CASE 4: Look in track object if present
@@ -198,6 +242,16 @@ const extractRadioDataFromStats = (response: any): any[] | null => {
     if (response.track.radio_plays && Array.isArray(response.track.radio_plays)) {
       console.log('Found radio data in response.track.radio_plays');
       return response.track.radio_plays;
+    }
+    
+    // Case 4.3: Look for any array property that might contain radio data
+    for (const key in response.track) {
+      if (Array.isArray(response.track[key]) && 
+          (key.includes('radio') || key.includes('station') || key.includes('play')) && 
+          response.track[key].length > 0) {
+        console.log(`Found potential radio data in response.track.${key}`);
+        return response.track[key];
+      }
     }
   }
   
@@ -216,6 +270,71 @@ const extractRadioDataFromStats = (response: any): any[] | null => {
       console.log('Found radio data in response.tracks[0].radio_plays');
       return track.radio_plays;
     }
+    
+    // Case 5.3: Look for any array property that might contain radio data
+    for (const key in track) {
+      if (Array.isArray(track[key]) && 
+          (key.includes('radio') || key.includes('station') || key.includes('play')) && 
+          track[key].length > 0) {
+        console.log(`Found potential radio data in response.tracks[0].${key}`);
+        return track[key];
+      }
+    }
+  }
+  
+  // CASE 6: For any root-level array property that might contain radio data
+  for (const key in response) {
+    if (Array.isArray(response[key]) && 
+        (key.includes('radio') || key.includes('station') || key.includes('play')) && 
+        response[key].length > 0) {
+      console.log(`Found potential radio data in response.${key}`);
+      return response[key];
+    }
+  }
+  
+  // CASE 7: Last resort - deep search
+  console.log('Looking for deeper nested radio data in response...');
+  
+  const searchForArrays = (obj: any, path: string = ''): any[] | null => {
+    if (!obj || typeof obj !== 'object') return null;
+    
+    for (const key in obj) {
+      const currentPath = path ? `${path}.${key}` : key;
+      
+      // Check if this is a promising array
+      if (Array.isArray(obj[key]) && obj[key].length > 0) {
+        // Check if array looks like radio data
+        const firstItem = obj[key][0];
+        if (firstItem && typeof firstItem === 'object') {
+          const hasRadioProps = 
+            'station' in firstItem || 
+            'station_name' in firstItem || 
+            'call_sign' in firstItem ||
+            'dj' in firstItem ||
+            'show' in firstItem ||
+            'spins' in firstItem ||
+            'plays' in firstItem;
+          
+          if (hasRadioProps) {
+            console.log(`Found likely radio data in ${currentPath}`);
+            return obj[key];
+          }
+        }
+      }
+      
+      // Recursively search nested objects
+      if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
+        const result = searchForArrays(obj[key], currentPath);
+        if (result) return result;
+      }
+    }
+    
+    return null;
+  };
+  
+  const deepSearchResult = searchForArrays(response);
+  if (deepSearchResult) {
+    return deepSearchResult;
   }
   
   console.log('No radio data found in any expected location in the response');
