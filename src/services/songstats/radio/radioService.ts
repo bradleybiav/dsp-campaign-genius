@@ -1,7 +1,7 @@
 
-import { RadioResult } from '@/components/ResultsTable';
+import { RadioResult } from '@/components/results-table/types';
 import { NormalizedInput } from '@/utils/apiUtils';
-import { callSongstatsApi } from '../apiClient';
+import { callSongstatsApi, getISRCFromSpotifyTrack } from '../apiClient';
 import { processRadioData } from './radioDataProcessor';
 import { toast } from 'sonner';
 
@@ -31,10 +31,15 @@ export const getRadioPlays = async (
         isrc = input.id;
         console.log(`Using direct ISRC input for radio: ${isrc}`);
       } else if (input.type === 'spotify_track') {
-        // For Spotify tracks, we would need to get the ISRC first
-        // This would be handled by a function like getISRCFromSpotify
-        // For now, we'll skip non-ISRC inputs for RadioStats research
-        continue;
+        // For Spotify tracks, get the ISRC
+        isrc = await getISRCFromSpotifyTrack(input.id);
+        
+        if (!isrc) {
+          console.log(`No ISRC found for Spotify track: ${input.id}, skipping radio lookup`);
+          continue;
+        }
+        
+        console.log(`Found ISRC: ${isrc} for Spotify track: ${input.id}`);
       } else {
         // Skip other input types
         continue;
@@ -44,10 +49,12 @@ export const getRadioPlays = async (
       
       radioApiStats.total++;
       
-      // Try "tracks/radio" endpoint (for some RadioStats API versions)
-      const response = await callSongstatsApi('tracks/radio', { 
-        isrc: isrc
-      }, true); // Explicitly tell it's a RadioStats API call
+      // Try "tracks/stats" endpoint with radio parameter instead of dedicated radio endpoint
+      // This mirrors how the DSP service is working successfully
+      const response = await callSongstatsApi('tracks/stats', { 
+        isrc: isrc,
+        with_radio: "true" // Using string "true" instead of boolean true
+      });
       
       if (!response || response.error) {
         console.error('Error getting radio data for ISRC:', response?.error || 'Unknown error');
@@ -58,9 +65,16 @@ export const getRadioPlays = async (
       // Process successful response
       radioApiStats.success++;
       
-      // Use the radioDataProcessor to extract radio results
-      const radioResults = processRadioData(response, input.inputIndex, processedStations);
-      results.push(...radioResults);
+      // Extract radio data from the stats response
+      const radioData = extractRadioDataFromStats(response);
+      
+      if (radioData && Array.isArray(radioData)) {
+        // Process the radio data
+        const radioResults = processRadioData({ data: radioData }, input.inputIndex, processedStations);
+        results.push(...radioResults);
+      } else {
+        console.log(`No radio data found in response for ISRC: ${isrc}`);
+      }
     }
     
     // Log API statistics for debugging
@@ -78,3 +92,40 @@ export const getRadioPlays = async (
   }
 };
 
+/**
+ * Extract radio data from the tracks/stats response
+ */
+const extractRadioDataFromStats = (response: any): any[] | null => {
+  // Check if response has stats array
+  if (response && response.stats && Array.isArray(response.stats)) {
+    // Try to find radio data in stats
+    for (const stat of response.stats) {
+      // Case 1: Radio source with data array
+      if (stat.source === 'radio' && stat.data && Array.isArray(stat.data)) {
+        return stat.data;
+      }
+      
+      // Case 2: Radio source with radio_plays array
+      if (stat.source === 'radio' && stat.data && Array.isArray(stat.data.radio_plays)) {
+        return stat.data.radio_plays;
+      }
+      
+      // Case 3: Stats source with radio_plays array
+      if (stat.source === 'stats' && stat.data && Array.isArray(stat.data.radio_plays)) {
+        return stat.data.radio_plays;
+      }
+    }
+  }
+  
+  // For single track response format
+  if (response && response.radio && Array.isArray(response.radio)) {
+    return response.radio;
+  }
+  
+  // For API responses that include radio_plays at the top level
+  if (response && response.radio_plays && Array.isArray(response.radio_plays)) {
+    return response.radio_plays;
+  }
+  
+  return null;
+};

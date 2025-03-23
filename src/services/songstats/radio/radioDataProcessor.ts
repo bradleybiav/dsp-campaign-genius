@@ -1,3 +1,4 @@
+
 import { RadioResult } from '@/components/results-table/types';
 
 /**
@@ -59,7 +60,7 @@ const processStationsArray = (
     }
     
     // Create unique key for this station - handle different API field names
-    const stationName = station.name || station.station_name;
+    const stationName = station.name || station.station_name || station.station || 'Unknown Station';
     const stationKey = stationName;
     
     // For spins/plays count - handle different API field names
@@ -91,7 +92,7 @@ const processStationsArray = (
       const result: RadioResult = {
         id: `radio-${stationName}-${inputIndex}`,
         station: stationName,
-        country: station.country || station.region || 'Unknown', // Try country first, then region as fallback
+        country: station.country || (station.region ? station.region : 'Unknown'), // Try country first, then region as fallback
         dj: station.dj || station.host || 'Unknown DJ',
         show: station.show || station.program || '',
         playsCount: playsCount,
