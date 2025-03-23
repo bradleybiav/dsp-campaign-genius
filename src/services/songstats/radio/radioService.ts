@@ -1,12 +1,12 @@
 
-import { RadioResult } from '@/components/results-table/types';
+import { RadioResult } from '@/components/ResultsTable';
 import { NormalizedInput } from '@/utils/apiUtils';
-import { callSongstatsApi, getISRCFromSpotifyTrack } from '../apiClient';
+import { callSongstatsApi } from '../apiClient';
 import { processRadioData } from './radioDataProcessor';
-import { showServiceError } from '@/hooks/research-form/errorHandler';
+import { toast } from 'sonner';
 
 /**
- * Get radio plays for a track using the RadioStats API
+ * Get radio airplay data for a track from RadioStats API
  */
 export const getRadioPlays = async (
   normalizedInputs: NormalizedInput[]
@@ -14,28 +14,29 @@ export const getRadioPlays = async (
   try {
     const results: RadioResult[] = [];
     const processedStations = new Map<string, RadioResult>();
-    const radioApiStats = { total: 0, successful: 0 };
+    
+    // Track API statistics for debugging
+    const radioApiStats = {
+      success: 0,
+      failed: 0,
+      total: 0
+    };
     
     // Process each input
     for (const input of normalizedInputs) {
       let isrc: string | null = null;
       
-      // For ISRC inputs, use them directly
       if (input.type === 'isrc') {
+        // For ISRC inputs, use them directly
         isrc = input.id;
         console.log(`Using direct ISRC input for radio: ${isrc}`);
       } else if (input.type === 'spotify_track') {
-        // For track URLs, first get the ISRC
-        isrc = await getISRCFromSpotifyTrack(input.id);
-        
-        if (!isrc) {
-          console.log(`No ISRC found for Spotify track: ${input.id}, skipping radio lookup`);
-          continue;
-        }
-        
-        console.log(`Found ISRC: ${isrc} for Spotify track: ${input.id}`);
+        // For Spotify tracks, we would need to get the ISRC first
+        // This would be handled by a function like getISRCFromSpotify
+        // For now, we'll skip non-ISRC inputs for RadioStats research
+        continue;
       } else {
-        // Skip other input types for radio research
+        // Skip other input types
         continue;
       }
       
@@ -43,34 +44,37 @@ export const getRadioPlays = async (
       
       radioApiStats.total++;
       
-      // Use the RadioStats API endpoint with correct path and params
-      // The proper endpoint is 'radio/' not 'radio/isrc'
-      const response = await callSongstatsApi('radio', { 
+      // Try "tracks/radio" endpoint (for some RadioStats API versions)
+      const response = await callSongstatsApi('tracks/radio', { 
         isrc: isrc
       }, true); // Explicitly tell it's a RadioStats API call
       
       if (!response || response.error) {
         console.error('Error getting radio data for ISRC:', response?.error || 'Unknown error');
+        radioApiStats.failed++;
         continue;
       }
       
-      radioApiStats.successful++;
+      // Process successful response
+      radioApiStats.success++;
       
-      // Process the radio data and add it to our results
+      // Use the radioDataProcessor to extract radio results
       const radioResults = processRadioData(response, input.inputIndex, processedStations);
-      if (radioResults.length > 0) {
-        results.push(...radioResults);
-      }
+      results.push(...radioResults);
     }
     
-    // Log stats about the API calls
-    console.log(`Radio API stats: ${radioApiStats.successful} successful calls out of ${radioApiStats.total} total calls`);
-    console.log(`Radio results: ${results.length}`);
+    // Log API statistics for debugging
+    console.log(`Radio API stats: ${radioApiStats.success} successful calls out of ${radioApiStats.total} total calls`);
+    console.log('Radio results:', results.length);
     
+    // Return all processed results
     return results;
   } catch (error) {
-    console.error('Error getting radio plays:', error);
-    showServiceError('Radio', error);
+    console.error('Error getting radio play data:', error);
+    toast.error('Failed to fetch radio data', {
+      description: 'There was a problem connecting to the RadioStats API'
+    });
     return [];
   }
 };
+

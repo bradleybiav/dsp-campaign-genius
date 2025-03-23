@@ -85,7 +85,7 @@ async function callSongstatsApi(path: string, params: any, apiKey: string, isRad
   // Determine which API to use based on isRadioApi flag
   const baseUrl = isRadioApi ? RADIOSTATS_API_URL : ENTERPRISE_API_URL;
   
-  // Don't modify path for RadioStats API - let client specify the exact endpoint
+  // Build the complete URL
   const url = `${baseUrl}/${path}?${queryParams.toString()}`;
   
   console.log(`Calling API: ${url} ${isRadioApi ? '(RadioStats API)' : ''}`);

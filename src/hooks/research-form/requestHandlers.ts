@@ -41,6 +41,7 @@ export async function executeResearch(
   // Execute vertical-specific research based on selected verticals
   const researchPromises: Promise<void>[] = [];
   const successfulVerticals: string[] = [];
+  const failedVerticals: string[] = [];
   
   // DSP vertical
   if (selectedVerticals.includes('dsp')) {
@@ -49,8 +50,12 @@ export async function executeResearch(
         researchResults.dspResults = results;
         console.log('DSP results:', results.length);
         if (results.length > 0) successfulVerticals.push('dsp');
+        else if (results.length === 0) failedVerticals.push('dsp');
       })
-      .catch(error => showServiceError('Playlist', error));
+      .catch(error => {
+        failedVerticals.push('dsp');
+        showServiceError('Playlist', error);
+      });
     researchPromises.push(dspPromise);
   }
   
@@ -61,8 +66,12 @@ export async function executeResearch(
         researchResults.radioResults = results;
         console.log('Radio results:', results.length);
         if (results.length > 0) successfulVerticals.push('radio');
+        else if (results.length === 0) failedVerticals.push('radio');
       })
-      .catch(error => showServiceError('Radio', error));
+      .catch(error => {
+        failedVerticals.push('radio');
+        showServiceError('Radio', error);
+      });
     researchPromises.push(radioPromise);
   }
   
@@ -73,8 +82,12 @@ export async function executeResearch(
         researchResults.djResults = results;
         console.log('DJ results:', results.length);
         if (results.length > 0) successfulVerticals.push('dj');
+        else if (results.length === 0) failedVerticals.push('dj');
       })
-      .catch(error => showServiceError('DJ', error));
+      .catch(error => {
+        failedVerticals.push('dj');
+        showServiceError('DJ', error);
+      });
     researchPromises.push(djPromise);
   }
   
@@ -85,8 +98,12 @@ export async function executeResearch(
         researchResults.pressResults = results;
         console.log('Press results:', results.length);
         if (results.length > 0) successfulVerticals.push('press');
+        else if (results.length === 0) failedVerticals.push('press');
       })
-      .catch(error => showServiceError('Press', error));
+      .catch(error => {
+        failedVerticals.push('press');
+        showServiceError('Press', error);
+      });
     researchPromises.push(pressPromise);
   }
   
@@ -100,12 +117,18 @@ export async function executeResearch(
     researchResults.djResults.length > 0 ||
     researchResults.pressResults.length > 0;
   
-  // Show which verticals succeeded
-  if (hasResults && successfulVerticals.length > 0) {
+  // Show which verticals succeeded and which failed
+  if (hasResults) {
     console.log('Live data retrieved for verticals:', successfulVerticals);
-    toast.success('Research completed successfully', {
-      description: `Found data in ${successfulVerticals.join(', ')} verticals`
-    });
+    if (failedVerticals.length > 0) {
+      toast.success('Research partially completed', {
+        description: `Found data in ${successfulVerticals.join(', ')} verticals. No data for ${failedVerticals.join(', ')}.`
+      });
+    } else {
+      toast.success('Research completed successfully', {
+        description: `Found data in ${successfulVerticals.join(', ')} verticals`
+      });
+    }
     return researchResults;
   }
   
